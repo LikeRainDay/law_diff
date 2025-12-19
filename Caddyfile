@@ -1,0 +1,26 @@
+:80 {
+    # Serve frontend static assets
+    root * /usr/share/caddy
+    file_server
+
+    # Forward API requests to the Rust backend
+    handle_path /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    # Forward health check
+    handle /health {
+        reverse_proxy localhost:8000
+    }
+
+    # Handle Next.js client-side routing
+    try_files {path} {path}.html /index.html
+
+    # Compression for better performance
+    encode gzip zstd
+
+    # Logging
+    log {
+        output stdout
+    }
+}

@@ -1,0 +1,14 @@
+**/target
+**/node_modules
+**/.next
+**/out
+**/.git
+backend/target
+frontend/node_modules
+frontend/.next
+frontend/out
+.DS_Store
+Dockerfile
+Caddyfile
+README.md
+docs

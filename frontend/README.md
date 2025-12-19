@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Law Compare Frontend
 
-## Getting Started
+A modern, responsive web application built with Next.js for legal document comparison and visualization.
 
-First, run the development server:
+[中文版本 (Chinese Version)](./README_CN.md)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Visualization Modes
+- **Structural Diff View**: Tree-based visualization of changes, integrated with a navigation sidebar.
+- **Side-by-Side (Parallel) View**: Synchronized scrolling and aligned blocks for natural reading.
+- **Git Classic View**: Standard line-based diff visualization.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Interaction & UX
+- **Dynamic Indicators**: Floating badges show the similarity percentage of each article.
+- **Entity Highlighting**: Named entities (Dates, Values) are color-coded to highlight material changes.
+- **Responsive Design**: Built with Tailwind CSS, supporting both Dark and Light modes.
+- **I18n**: Support for English and Chinese interfaces.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Tech Stack
+- **Framework**: [Next.js 15+](https://nextjs.org/)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **Icons**: [Lucide React](https://lucide.dev/)

@@ -1,20 +1,68 @@
-# 法条对比
+# Law Compare: Intelligent Legal Text Analysis Tool
 
-> 我需要实现法条对比(服务于同法 不同的版本 查看其中的差异内容)
-> 竞品的效果: http://m.fadada.com/article/Basics-020737
-> 我期望可以直观的看到新旧法的差异和变迁
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/backend-Rust-orange.svg)](backend)
+[![Next.js](https://img.shields.io/badge/frontend-Next.js-black.svg)](frontend)
 
-# 技术要求
-1. 前端使用next
-2. 后端使用rust 进行封装比对逻辑
+An intelligent, high-performance tool for comparing legal documents and analyzing structural changes. Unlike generic diff tools, **Law Compare** understands the hierarchy of laws (Chapters, Sections, Articles, Clauses) and uses NLP to align content even when article numbers change.
 
-# 展示要求
-1. 要有两种模式 1. git的对比模式 2. 左右对比模式
-2. 左右对比模式要 抽取到差异点 进行具有猫点的移动效果
+[中文版本 (Chinese Version)](./README_CN.md)
 
-# 后端底层要求
-1. 使用nlp 工具进行切词,并且支持 词的管理
-2. 使用rust-bert 进行命名实体的 识别,帮助可以识别出特定的实体和特定的含义. 比如 差异点包含 对应法条的使用范围年限变更, 登记变更等等
-3. 需要similar库进行diff对比.
-4. 期望所有原始法条数据,遍章节条款项 等都使用AST的方式进行管理,更加搞笑
-5. 后端接口要对前端友好并且满足要求
+---
+
+## ✨ Key Features
+
+- **Structural Diff**: Automatically identifies chapters, sections, and articles. It detects added, deleted, modified, and even merged/split articles.
+- **Intelligent Alignment**: Uses weighted similarity algorithms (Jaccard + Containment + Semantic) to track moved or renumbered articles.
+- **Multiple Views**:
+  - **Structural View**: Tree-based visualization of changes across the entire document.
+  - **Side-by-Side View**: Dual-pane comparison for focused reading.
+  - **Git-style View**: Classic line-by-line diff for technical review.
+- **High Performance**: Backend written in Rust with parallel processing and memory-efficient `Arc<str>` data sharing.
+- **NER (Named Entity Recognition)**: Automatically detects dates, amounts, and legal terms within changes.
+
+## 📸 Screenshots
+
+| Structural Analysis | Side-by-Side Comparison |
+|:---:|:---:|
+| ![Structural View](docs/screenshots/structural.png) | ![Side-by-Side](docs/screenshots/side_by_side.png) |
+
+| Git-style Line Diff |
+|:---:|
+| ![Git View](docs/screenshots/git_diff.png) |
+
+---
+
+## 🚀 Quick Start (Docker)
+
+The easiest way to deploy Law Compare is using Docker with the included Caddy configuration.
+
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/law-compare.git
+cd law-compare
+
+# Build and run with Docker
+docker build -t law-compare .
+docker run -d -p 8080:80 law-compare
+```
+
+Access the application at `http://localhost:8080`.
+
+---
+
+## 🏗️ Architecture
+
+- **Frontend**: Next.js 15+ with Tailwind CSS and Framer Motion for a premium, responsive UI.
+- **Backend**: Rust (Axum) featuring:
+  - **AST Parser**: Regex-based hierarchical parsing of legal documents.
+  - **Aligner**: Multi-stage alignment logic to handle document evolution.
+  - **Tokenizer**: Efficient Chinese segmentation using `jieba-rs`.
+- **Proxy**: Caddy for efficient static file serving and API reverse proxying.
+
+---
+
+## 📖 Module Documentation
+
+- [Backend Documentation](./backend/README.md)
+- [Frontend Documentation](./frontend/README.md)
