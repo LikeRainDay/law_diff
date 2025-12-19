@@ -117,16 +117,50 @@ pub fn calculate_composite_similarity(
     tokens1: &HashSet<String>,
     tokens2: &HashSet<String>,
 ) -> SimilarityScore {
+    // FAST PATH 1: Identity
     if text1 == text2 {
         return SimilarityScore::new(1.0, 1.0, 1.0, 1.0);
     }
 
-    let char_sim = calculate_char_similarity(text1, text2);
+    // FAST PATH 2: Empty
+    if text1.is_empty() || text2.is_empty() {
+        return SimilarityScore::new(0.0, 0.0, 0.0, 0.5);
+    }
+
+    // FAST PATH 3: Length Pruning
+    // If one is more than 5x the length of the other, they are likely not the same article
+    let len1 = text1.chars().count();
+    let len2 = text2.chars().count();
+    let ratio = if len1 > len2 { len2 as f32 / len1 as f32 } else { len1 as f32 / len2 as f32 };
+
+    // Low length ratio + low Jaccard means we can skip heavy LCS
     let jaccard_sim = calculate_jaccard_similarity(tokens1, tokens2);
+
+    if ratio < 0.2 && jaccard_sim < 0.1 {
+        return SimilarityScore::new(ratio * 0.5, jaccard_sim, 0.0, 0.5);
+    }
+
+    let char_sim = calculate_char_similarity(text1, text2);
     let containment_sim = calculate_containment_similarity(tokens1, tokens2);
     let keyword_weight = calculate_legal_keyword_weight(text1, text2);
 
-    SimilarityScore::new(char_sim, jaccard_sim, containment_sim, keyword_weight)
+    let composite = char_sim * 0.3 + jaccard_sim * 0.2 + containment_sim * 0.3 + keyword_weight * 0.2;
+
+    // Final safety: only return 1.0 if strings are EXACTLY identical
+    // Otherwise cap at 0.99
+    let final_composite = if composite >= 1.0 && text1 != text2 {
+        0.99
+    } else {
+        composite
+    };
+
+    SimilarityScore {
+        char_similarity: char_sim,
+        jaccard_similarity: jaccard_sim,
+        containment_similarity: containment_sim,
+        keyword_weight,
+        composite: final_composite,
+    }
 }
 
 #[cfg(test)]

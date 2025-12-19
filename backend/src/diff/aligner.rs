@@ -3,6 +3,8 @@ use crate::diff::similarity::{calculate_composite_similarity, SimilarityScore};
 use crate::models::{ArticleChange, ArticleChangeType, ArticleInfo, ArticleNode, NodeType};
 use crate::nlp::tokenizer::tokenize_to_set;
 use crate::nlp::formatter::normalize_legal_text;
+use rayon::prelude::*;
+use std::collections::HashSet;
 
 // Base thresholds - will be adjusted by user input
 const EXACT_MATCH_THRESHOLD: f32 = 1.0;
@@ -167,37 +169,48 @@ pub fn align_articles(
     changes
 }
 
-/// Build a comprehensive similarity matrix between all old and new articles
+/// Build a comprehensive similarity matrix between all old and new articles.
+/// Optimized with parallel processing and pre-tokenization.
 fn build_similarity_matrix(
     old_articles: &[ArticleInfo],
     new_articles: &[ArticleInfo],
 ) -> Vec<Vec<SimilarityScore>> {
-    let mut matrix = Vec::with_capacity(old_articles.len());
+    // 1. Pre-tokenize everything once
+    let old_tokens: Vec<HashSet<String>> = old_articles.par_iter()
+        .map(|art| tokenize_to_set(&art.content))
+        .collect();
 
-    for old_art in old_articles {
+    let new_tokens: Vec<HashSet<String>> = new_articles.par_iter()
+        .map(|art| tokenize_to_set(&art.content))
+        .collect();
+
+    // 2. Build matrix in parallel
+    old_articles.par_iter().enumerate().map(|(i, old_art)| {
         let mut row = Vec::with_capacity(new_articles.len());
-        let old_tokens = tokenize_to_set(&old_art.content);
+        let tokens_a = &old_tokens[i];
 
-        for new_art in new_articles {
-            let new_tokens = tokenize_to_set(&new_art.content);
+        for (j, new_art) in new_articles.iter().enumerate() {
+            let tokens_b = &new_tokens[j];
             let mut score_wrapper = calculate_composite_similarity(
                 &old_art.content,
                 &new_art.content,
-                &old_tokens,
-                &new_tokens,
+                tokens_a,
+                tokens_b,
             );
 
-            // Context bonus: if chapters/sections match, it's more likely the same article
+            // Context bonus: if chapters/sections match, it's more likely the same article.
+            // IMPORTANT: Bonus is for alignment phase, but we MUST NOT fake 100% similarity.
+            // If it's not identical (score < 1.0), the bonus should cap at 0.99 for alignment.
             if !old_art.parents.is_empty() && old_art.parents == new_art.parents {
-                score_wrapper.composite = (score_wrapper.composite + 0.15).min(1.0);
+                if score_wrapper.composite < 0.999 {
+                    score_wrapper.composite = (score_wrapper.composite + 0.15).min(0.99);
+                }
             }
 
             row.push(score_wrapper);
         }
-        matrix.push(row);
-    }
-
-    matrix
+        row
+    }).collect()
 }
 
 /// Stage 0: Match articles with identical numbers as primary signal

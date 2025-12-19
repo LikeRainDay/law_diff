@@ -147,75 +147,60 @@ export const DiffResultViewer = React.memo(({
         </div>
 
         {/* Sidebar */}
-        <div className="lg:col-span-3 order-1 lg:order-2 space-y-6">
-          {/* Mini Map */}
-          <Card className="glass-card shadow-md sticky top-24">
-            <CardHeader className="py-3 px-4 border-b border-border/10">
-              <CardTitle className="text-sm font-medium">{t('nav_title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <AnchorNavigation
-                changes={diffResult.changes}
-                articleChanges={diffResult.articleChanges}
-                viewMode={viewMode}
-                className="max-h-[600px]"
-                language={language}
-              />
-            </CardContent>
-          </Card>
+        <div className="lg:col-span-3 order-1 lg:order-2">
+          <div className="sticky top-24 space-y-6">
+            {/* Mini Map */}
+            <Card className="glass-card shadow-md">
+              <CardHeader className="py-3 px-4 border-b border-border/10">
+                <CardTitle className="text-sm font-medium">{t('nav_title')}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <AnchorNavigation
+                  changes={diffResult.changes}
+                  articleChanges={diffResult.articleChanges}
+                  viewMode={viewMode}
+                  className="max-h-[40vh] overflow-y-auto"
+                  language={language}
+                />
+              </CardContent>
+            </Card>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="bg-green-500/5 border-green-500/20">
-              <div className="p-3 text-center">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {diffResult.stats.additions}
-                </div>
-                <div className="text-xs text-muted-foreground">{t('stats_added')}</div>
-              </div>
-            </Card>
-            <Card className="bg-red-500/5 border-red-500/20">
-              <div className="p-3 text-center">
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {diffResult.stats.deletions}
-                </div>
-                <div className="text-xs text-muted-foreground">{t('stats_deleted')}</div>
-              </div>
-            </Card>
-            <Card className="bg-amber-500/5 border-amber-500/20">
-              <div className="p-3 text-center">
-                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {diffResult.stats.modifications}
-                </div>
-                <div className="text-xs text-muted-foreground">{t('stats_modified')}</div>
-              </div>
-            </Card>
-            <Card className="bg-blue-500/5 border-blue-500/20">
-              <div className="p-3 text-center">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {diffResult.stats.unchanged}
-                </div>
-                <div className="text-xs text-muted-foreground">{t('stats_unchanged')}</div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Entities */}
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="py-3 px-4 border-b border-border/10">
-              <CardTitle className="text-sm font-medium">{t('entities_title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 max-h-[300px] overflow-y-auto custom-scrollbar">
-              <div className="divide-y divide-border/20">
-                <EntityHighlight entities={diffResult.entities} />
-                {diffResult.entities.length === 0 && (
-                  <div className="p-4 text-center text-xs text-muted-foreground">
-                    {t('no_entities')}
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="bg-green-500/5 border-green-500/20 shadow-sm transition-all hover:bg-green-500/10">
+                <div className="p-3 text-center">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {diffResult.stats.additions}
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="text-xs text-muted-foreground">{t('stats_added')}</div>
+                </div>
+              </Card>
+              <Card className="bg-red-500/5 border-red-500/20 shadow-sm transition-all hover:bg-red-500/10">
+                <div className="p-3 text-center">
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                    {diffResult.stats.deletions}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('stats_deleted')}</div>
+                </div>
+              </Card>
+              <Card className="bg-amber-500/5 border-amber-500/20 shadow-sm transition-all hover:bg-amber-500/10">
+                <div className="p-3 text-center">
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    {diffResult.stats.modifications}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('stats_modified')}</div>
+                </div>
+              </Card>
+              <Card className="bg-blue-500/5 border-blue-500/20 shadow-sm transition-all hover:bg-blue-500/10">
+                <div className="p-3 text-center">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {diffResult.stats.unchanged}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('stats_unchanged')}</div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>

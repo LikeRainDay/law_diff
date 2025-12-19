@@ -112,7 +112,7 @@ export default function Home() {
       const result = await compareLegalTextsAsync(oldText, newText, {
         alignThreshold,
         formatText,
-        detectEntities: true,
+        detectEntities: false,
         type: type
       });
 
@@ -133,7 +133,7 @@ export default function Home() {
                 const result = await compareLegalTextsAsync(oldText, newText, {
                     alignThreshold,
                     formatText,
-                    detectEntities: true,
+                    detectEntities: false,
                     type: 'structure'
                 });
                 setDiffResult(prev => prev ? { ...prev, articleChanges: result.articleChanges } : result);
@@ -150,7 +150,7 @@ export default function Home() {
                 const result = await compareLegalTextsAsync(oldText, newText, {
                     alignThreshold,
                     formatText,
-                    detectEntities: true,
+                    detectEntities: false,
                     type: 'git'
                 });
                 setDiffResult(prev => prev ? { ...prev, changes: result.changes, stats: result.stats } : result);
