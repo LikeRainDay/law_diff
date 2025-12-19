@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import React from 'react';
 import { Change } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import * as DiffMatchPatch from 'diff-match-patch';
@@ -11,187 +10,121 @@ interface SideBySideViewProps {
   className?: string;
 }
 
+// [REFACTORED] SideBySideView using Grid Rows for perfect alignment
 export default function SideBySideView({ changes, className }: SideBySideViewProps) {
-  const leftRef = useRef<HTMLDivElement>(null);
-  const rightRef = useRef<HTMLDivElement>(null);
-  const [syncScroll, setSyncScroll] = useState(true);
-
-  // Synchronized scrolling
-  useEffect(() => {
-    if (!syncScroll) return;
-
-    const leftDiv = leftRef.current;
-    const rightDiv = rightRef.current;
-    if (!leftDiv || !rightDiv) return;
-
-    const handleLeftScroll = () => {
-      if (rightDiv && syncScroll) {
-        rightDiv.scrollTop = leftDiv.scrollTop;
-      }
-    };
-
-    const handleRightScroll = () => {
-      if (leftDiv && syncScroll) {
-        leftDiv.scrollTop = rightDiv.scrollTop;
-      }
-    };
-
-    leftDiv.addEventListener('scroll', handleLeftScroll);
-    rightDiv.addEventListener('scroll', handleRightScroll);
-
-    return () => {
-      leftDiv.removeEventListener('scroll', handleLeftScroll);
-      rightDiv.removeEventListener('scroll', handleRightScroll);
-    };
-  }, [syncScroll]);
-
   // Group changes into lines for side-by-side display
-  const lineGroups = groupChangesForSideBySide(changes);
+  const lineGroups = React.useMemo(() => groupChangesForSideBySide(changes), [changes]);
 
   return (
-    <div className={cn('border rounded-lg overflow-hidden', className)}>
+    <div className={cn('border rounded-lg overflow-hidden flex flex-col', className)}>
       {/* Header */}
       <div className="bg-muted/40 p-4 border-b border-border/10 flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-base">左右对比模式</h3>
-          <p className="text-xs text-muted-foreground mt-1">左侧为旧版本，右侧为新版本</p>
+          <p className="text-xs text-muted-foreground mt-1">左侧为旧版本，右侧为新版本 (自动对齐)</p>
         </div>
-        <button
-          onClick={() => setSyncScroll(!syncScroll)}
-          className={cn(
-            'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-            syncScroll
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-          )}
-        >
-          {syncScroll ? '同步滚动开启' : '同步滚动关闭'}
-        </button>
       </div>
 
-      {/* Content */}
-      <div className="grid grid-cols-2 divide-x divide-border">
-        {/* Left side (old version) */}
-        <div>
-          <div className="bg-red-500/10 px-4 py-2 border-b border-border/50">
-            <span className="text-sm font-medium text-red-600 dark:text-red-400">旧版本</span>
-          </div>
-          <div
-            ref={leftRef}
-            className="overflow-y-auto custom-scrollbar font-mono text-sm"
-            style={{ maxHeight: '600px' }}
-          >
-            {lineGroups.map((group, index) => (
-              <SideBySideLine
-                key={`left-${index}`}
-                content={group.oldContent}
-                comparedContent={group.newContent}
-                lineNumber={group.oldLine}
-                type={group.type === 'add' ? 'empty' : group.type}
-                side="old"
-                index={index}
-              />
-            ))}
-          </div>
-        </div>
+      {/* Header Columns */}
+      <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border border-b border-border text-sm font-medium">
+          <div className="bg-red-500/10 px-4 py-2 text-red-600 dark:text-red-400">旧版本</div>
+          <div className="bg-muted/30"></div>
+          <div className="bg-green-500/10 px-4 py-2 text-green-600 dark:text-green-400">新版本</div>
+      </div>
 
-        {/* Right side (new version) */}
-        <div>
-          <div className="bg-green-500/10 px-4 py-2 border-b border-border/50">
-            <span className="text-sm font-medium text-green-600 dark:text-green-400">新版本</span>
+      {/* Content Area (Infinite Height) */}
+      <div className="bg-background">
+          <div className="flex flex-col">
+              {lineGroups.map((group, index) => (
+                  <SideBySideRow key={index} group={group} index={index} />
+              ))}
           </div>
-          <div
-            ref={rightRef}
-            className="overflow-y-auto custom-scrollbar font-mono text-sm"
-            style={{ maxHeight: '600px' }}
-          >
-            {lineGroups.map((group, index) => (
-              <SideBySideLine
-                key={`right-${index}`}
-                content={group.newContent}
-                comparedContent={group.oldContent}
-                lineNumber={group.newLine}
-                type={group.type === 'delete' ? 'empty' : group.type}
-                side="new"
-                index={index}
-              />
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
-interface SideBySideLineProps {
-  content?: string;
-  comparedContent?: string;
-  lineNumber?: number;
-  type: 'add' | 'delete' | 'modify' | 'unchanged' | 'empty';
-  side: 'old' | 'new';
-  index: number;
-}
-
-function SideBySideLine({ content, comparedContent, lineNumber, type, side, index }: SideBySideLineProps) {
-  const getLineStyle = () => {
-    switch (type) {
-      case 'add':
-        return 'bg-green-500/10 hover:bg-green-500/20';
-      case 'delete':
-        return 'bg-red-500/10 hover:bg-red-500/20';
-      case 'modify':
-        return 'bg-amber-500/10 hover:bg-amber-500/20';
-      case 'empty':
-        return 'bg-muted/20';
-      default:
-        return 'bg-background hover:bg-muted/50';
-    }
-  };
-
-  if (type === 'empty') {
+// Single Row Component ensures heights match perfectly
+const SideBySideRow = React.memo(({ group, index }: { group: any, index: number }) => {
     return (
-      <div className={cn('flex min-h-[32px] border-b border-border/50', getLineStyle())}>
-        <div className="flex-shrink-0 w-12 px-2 py-1 bg-muted/20 text-muted-foreground text-right select-none border-r border-border/10">
+        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border/60 border-b border-border/30 min-h-[32px] hover:bg-muted/30 transition-colors group" id={`chunk-${index}`}>
+
+            {/* Left Side (Old) */}
+            <div className={cn(
+                "relative flex items-stretch",
+                group.type === 'delete' && "bg-red-500/[0.04]",
+                group.type === 'modify' && "bg-amber-500/[0.04]"
+            )}>
+                {/* Line Number */}
+                <div className="w-12 flex-shrink-0 bg-muted/40 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none font-mono">
+                    {group.oldLine || ""}
+                </div>
+                {/* Content */}
+                <div className={cn(
+                    "flex-1 p-3 font-mono text-[13px] break-words whitespace-pre-wrap leading-relaxed",
+                    (group.type === 'delete' || group.type === 'modify') ? "text-foreground" : "text-muted-foreground/70",
+                    group.type === 'add' && "opacity-0 select-none" // Empty slot for added line
+                )}>
+                    {group.type !== 'add' && (group.type === 'modify' ? highlightCharacterDiff(group.oldContent, group.newContent, 'old') : group.oldContent)}
+                </div>
+            </div>
+
+            {/* Central Gutter (Visual Flow) */}
+            <div className="relative bg-muted/20 flex items-center justify-center overflow-hidden border-x border-border/10">
+                <GutterVisualization type={group.type} />
+            </div>
+
+            {/* Right Side (New) */}
+            <div className={cn(
+                "relative flex items-stretch",
+                group.type === 'add' && "bg-green-500/[0.04]",
+                group.type === 'modify' && "bg-amber-500/[0.04]"
+            )}>
+                 {/* Line Number */}
+                 <div className="w-12 flex-shrink-0 bg-muted/40 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none font-mono">
+                    {group.newLine || ""}
+                </div>
+                {/* Content */}
+                <div className={cn(
+                    "flex-1 p-3 font-mono text-[13px] break-words whitespace-pre-wrap leading-relaxed",
+                     (group.type === 'add' || group.type === 'modify') ? "text-foreground font-medium" : "text-muted-foreground/70",
+                     group.type === 'delete' && "opacity-0 select-none" // Empty slot for deleted line
+                )}>
+                    {group.type !== 'delete' && (group.type === 'modify' ? highlightCharacterDiff(group.oldContent, group.newContent, 'new') : group.newContent)}
+                </div>
+            </div>
         </div>
-        <div className="flex-1 px-3 py-1"></div>
-      </div>
     );
-  }
+});
 
-  // Character-level diff highlighting for modify type
-  let displayContent: React.ReactNode = content;
+SideBySideRow.displayName = 'SideBySideRow';
 
-  if (type === 'modify' && content && comparedContent) {
-    displayContent = highlightCharacterDiff(
-      side === 'old' ? content : comparedContent,
-      side === 'old' ? comparedContent : content,
-      side
+const GutterVisualization = React.memo(({ type }: { type: string }) => {
+    if (type === 'unchanged') return null;
+
+    return (
+        <div className="relative w-full h-full flex items-center justify-center">
+            {type === 'modify' && (
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-amber-500/20 fill-current">
+                     <path d="M0,0 L100,0 L100,100 L0,100 Z" />
+                </svg>
+            )}
+            {type === 'add' && (
+                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-green-500/20 fill-current">
+                     <path d="M50,0 L100,0 L100,100 L50,100 L0,50 Z" />
+                </svg>
+            )}
+            {type === 'delete' && (
+                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-red-500/20 fill-current">
+                     <path d="M0,0 L50,0 L100,50 L50,100 L0,100 Z" />
+                </svg>
+            )}
+        </div>
     );
-  }
+});
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2, delay: index * 0.005 }}
-      className={cn('flex min-h-[32px] border-b border-border/50 transition-colors', getLineStyle())}
-      id={`line-${index}`}
-    >
-      {/* Line number */}
-      <div className="flex-shrink-0 w-12 px-2 py-1 bg-muted/30 text-muted-foreground text-right select-none text-xs border-r border-border/10">
-        {lineNumber}
-      </div>
+GutterVisualization.displayName = 'GutterVisualization';
 
-      {/* Content */}
-      <div className={cn(
-        'flex-1 px-3 py-1 whitespace-pre-wrap break-words text-foreground',
-        (type === 'add' || type === 'delete' || type === 'modify') && 'font-medium'
-      )}>
-        {type === 'modify' ? displayContent : content}
-      </div>
-    </motion.div>
-  );
-}
 
 // Character-level diff highlighting using diff-match-patch
 function highlightCharacterDiff(text1: string, text2: string, side: 'old' | 'new'): React.ReactNode {

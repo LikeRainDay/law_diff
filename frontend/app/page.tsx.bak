@@ -1,0 +1,10 @@
+'use client';
+
+export default function Home() {
+  return (
+    <div className="p-10">
+      <h1 className="text-4xl font-bold text-red-500">Hello Debug World</h1>
+      <p>If you can see this, the routing works.</p>
+    </div>
+  );
+}

@@ -12,19 +12,26 @@ pub enum ArticleChangeType {
     Moved,      // Position changed significantly
     Added,
     Deleted,
+    Replaced,   // Number reused but content is completely different
+    Preamble,   // Metadata/Intro/TOC
 }
 
 /// Minimal info about an article for diff reference
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArticleInfo {
     pub number: String,
     pub content: String,
     pub title: Option<String>,
-    pub start_line: usize, // For UI navigation
+    pub start_line: usize,
+    pub node_type: NodeType, // NEW
+    #[serde(default)]
+    pub parents: Vec<String>, // Hierarchy context (e.g. ["第一章 总则"])
 }
 
 /// Structural change in an article
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArticleChange {
     #[serde(rename = "type")]
     pub change_type: ArticleChangeType,
@@ -36,6 +43,8 @@ pub struct ArticleChange {
     pub similarity: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Vec<Change>>, // Detailed word-level diff
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 /// Article node type in AST
@@ -48,6 +57,7 @@ pub enum NodeType {
     Article,  // 条
     Clause,   // 款
     Item,     // 项
+    Preamble, // 序言/目录/前言
 }
 
 /// AST node for legal article structure
@@ -58,6 +68,8 @@ pub struct ArticleNode {
     pub title: Option<String>,
     pub content: String,
     pub children: Vec<ArticleNode>,
+    #[serde(default)]
+    pub start_line: usize,
 }
 
 /// Change type in diff
@@ -72,6 +84,7 @@ pub enum ChangeType {
 
 /// Single change in diff result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Change {
     #[serde(rename = "type")]
     pub change_type: ChangeType,
@@ -117,6 +130,7 @@ pub struct Position {
 
 /// Diff statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffStats {
     pub additions: usize,
     pub deletions: usize,
@@ -126,6 +140,7 @@ pub struct DiffStats {
 
 /// Complete diff result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffResult {
     pub similarity: f32,
     pub changes: Vec<Change>,
@@ -151,7 +166,16 @@ pub struct CompareOptions {
     #[serde(default = "default_word_granularity")]
     pub granularity: String,
     #[serde(default)]
+
     pub ner_mode: Option<String>, // "regex", "bert", or "hybrid"
+    #[serde(default = "default_align_threshold")]
+    pub align_threshold: f32,
+    #[serde(default)]
+    pub format_text: bool,
+}
+
+fn default_align_threshold() -> f32 {
+    0.6
 }
 
 fn default_true() -> bool {

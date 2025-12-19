@@ -1,0 +1,344 @@
+    Checking law-compare-backend v0.1.0 (/Users/houshuai/project/front/law_comparse/backend)
+warning: unexpected `cfg` condition value: `bert`
+ --> src/nlp/mod.rs:7:7
+  |
+7 | #[cfg(feature = "bert")]
+  |       ^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `default`
+  = help: consider adding `bert` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/mod.rs:15:7
+   |
+15 | #[cfg(feature = "bert")]
+   |       ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `std::collections::HashSet`
+  --> src/nlp/tokenizer.rs:23:9
+   |
+23 |     use std::collections::HashSet;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/ner_trait.rs:23:11
+   |
+23 |     #[cfg(feature = "bert")]
+   |           ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/ner_trait.rs:26:11
+   |
+26 |     #[cfg(feature = "bert")]
+   |           ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `EntityType` and `Position`
+ --> src/nlp/ner_trait.rs:1:29
+  |
+1 | use crate::models::{Entity, EntityType, Position};
+  |                             ^^^^^^^^^^  ^^^^^^^^
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/ner_trait.rs:40:19
+   |
+40 |             #[cfg(feature = "bert")]
+   |                   ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/ner_trait.rs:42:19
+   |
+42 |             #[cfg(feature = "bert")]
+   |                   ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/ner_trait.rs:53:15
+   |
+53 |         #[cfg(feature = "bert")]
+   |               ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/ner_trait.rs:59:15
+   |
+59 |         #[cfg(feature = "bert")]
+   |               ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+ --> src/nlp/bert_ner.rs:1:7
+  |
+1 | #[cfg(feature = "bert")]
+  |       ^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `default`
+  = help: consider adding `bert` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+ --> src/nlp/bert_ner.rs:3:7
+  |
+3 | #[cfg(feature = "bert")]
+  |       ^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `default`
+  = help: consider adding `bert` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/bert_ner.rs:10:7
+   |
+10 | #[cfg(feature = "bert")]
+   |       ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/bert_ner.rs:16:7
+   |
+16 | #[cfg(feature = "bert")]
+   |       ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/bert_ner.rs:53:7
+   |
+53 | #[cfg(feature = "bert")]
+   |       ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/bert_ner.rs:94:11
+   |
+94 | #[cfg(not(feature = "bert"))]
+   |           ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+  --> src/nlp/bert_ner.rs:98:11
+   |
+98 | #[cfg(not(feature = "bert"))]
+   |           ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`
+   = help: consider adding `bert` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bert`
+   --> src/nlp/bert_ner.rs:105:11
+    |
+105 | #[cfg(not(feature = "bert"))]
+    |           ^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`
+    = help: consider adding `bert` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `EntityType` and `Position`
+ --> src/nlp/bert_ner.rs:6:29
+  |
+6 | use crate::models::{Entity, EntityType, Position};
+  |                             ^^^^^^^^^^  ^^^^^^^^
+
+warning: unused imports: `WordManager`, `tokenize_with_dict`, and `tokenize`
+  --> src/nlp/mod.rs:10:21
+   |
+10 | pub use tokenizer::{tokenize, tokenize_with_dict, WordManager};
+   |                     ^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `bert_ner::BertNER`
+  --> src/nlp/mod.rs:13:9
+   |
+13 | pub use bert_ner::BertNER;
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+  --> src/ast/mod.rs:80:25
+   |
+80 |             if let Some(mut section) = current_section.take() {
+   |                         ----^^^^^^^
+   |                         |
+   |                         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `merged_old_articles`
+   --> src/diff/aligner.rs:291:21
+    |
+291 |                 let merged_old_articles: Vec<ArticleInfo> = merge_indices
+    |                     ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_merged_old_articles`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `i`
+   --> src/diff/aligner.rs:299:22
+    |
+299 |                 for (i, old_idx) in merge_indices.iter().enumerate() {
+    |                      ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: value assigned to `modifications` is never read
+  --> src/diff/mod.rs:22:13
+   |
+22 |     let mut modifications = 0;
+   |             ^^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `word`
+  --> src/nlp/tokenizer.rs:38:9
+   |
+38 |     for word in custom_words {
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_word`
+
+warning: function `calculate_similarity` is never used
+   --> src/diff/mod.rs:138:8
+    |
+138 | pub fn calculate_similarity(old_text: &str, new_text: &str) -> f32 {
+    |        ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: struct `AlignmentCandidate` is never constructed
+  --> src/diff/aligner.rs:13:8
+   |
+13 | struct AlignmentCandidate {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: fields `char_similarity`, `jaccard_similarity`, and `keyword_weight` are never read
+  --> src/diff/similarity.rs:16:9
+   |
+14 | pub struct SimilarityScore {
+   |            --------------- fields in this struct
+15 |     /// Character-level similarity (0.0 - 1.0)
+16 |     pub char_similarity: f32,
+   |         ^^^^^^^^^^^^^^^
+17 |     /// Token-based Jaccard coefficient (0.0 - 1.0)
+18 |     pub jaccard_similarity: f32,
+   |         ^^^^^^^^^^^^^^^^^^
+19 |     /// Legal keyword overlap weight (0.0 - 1.0)
+20 |     pub keyword_weight: f32,
+   |         ^^^^^^^^^^^^^^
+   |
+   = note: `SimilarityScore` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `granularity` is never read
+   --> src/models/mod.rs:152:9
+    |
+148 | pub struct CompareOptions {
+    |            -------------- field in this struct
+...
+152 |     pub granularity: String,
+    |         ^^^^^^^^^^^
+    |
+    = note: `CompareOptions` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `extract_entities` is never used
+  --> src/nlp/mod.rs:19:8
+   |
+19 | pub fn extract_entities(text: &str) -> Vec<crate::models::Entity> {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: function `tokenize` is never used
+  --> src/nlp/tokenizer.rs:12:8
+   |
+12 | pub fn tokenize(text: &str) -> Vec<String> {
+   |        ^^^^^^^^
+
+warning: function `tokenize_with_dict` is never used
+  --> src/nlp/tokenizer.rs:34:8
+   |
+34 | pub fn tokenize_with_dict(text: &str, custom_words: &[String]) -> Vec<String> {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `WordManager` is never constructed
+  --> src/nlp/tokenizer.rs:50:12
+   |
+50 | pub struct WordManager {
+   |            ^^^^^^^^^^^
+
+warning: associated items `new`, `add_word`, `remove_word`, `get_words`, and `load_legal_terms` are never used
+  --> src/nlp/tokenizer.rs:55:12
+   |
+54 | impl WordManager {
+   | ---------------- associated items in this implementation
+55 |     pub fn new() -> Self {
+   |            ^^^
+...
+62 |     pub fn add_word(&mut self, word: String) {
+   |            ^^^^^^^^
+...
+69 |     pub fn remove_word(&mut self, word: &str) {
+   |            ^^^^^^^^^^^
+...
+74 |     pub fn get_words(&self) -> &[String] {
+   |            ^^^^^^^^^
+...
+79 |     pub fn load_legal_terms(&mut self) {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: method `confidence_range` is never used
+  --> src/nlp/ner_trait.rs:14:8
+   |
+ 6 | pub trait NEREngine: Send + Sync {
+   |           --------- method in this trait
+...
+14 |     fn confidence_range(&self) -> (f32, f32);
+   |        ^^^^^^^^^^^^^^^^
+
+warning: struct `BertNER` is never constructed
+  --> src/nlp/bert_ner.rs:96:12
+   |
+96 | pub struct BertNER;
+   |            ^^^^^^^
+
+warning: associated function `new` is never used
+   --> src/nlp/bert_ner.rs:100:12
+    |
+ 99 | impl BertNER {
+    | ------------ associated function in this implementation
+100 |     pub fn new(_model_path: &str) -> Result<Self> {
+    |            ^^^
+
+warning: `law-compare-backend` (bin "law-compare-backend") generated 38 warnings (run `cargo fix --bin "law-compare-backend"` to apply 6 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s

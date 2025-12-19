@@ -23,9 +23,21 @@ export async function checkBackendHealth(): Promise<boolean> {
  * Compare two legal texts using the Rust backend API
  * Falls back to local processing if backend is unavailable
  */
-export async function compareLegalTextsAsync(oldText: string, newText: string): Promise<DiffResult> {
+export async function compareLegalTextsAsync(
+  oldText: string,
+  newText: string,
+  options?: Partial<{
+    alignThreshold: number;
+    formatText: boolean;
+    detectEntities: boolean;
+    type: 'full' | 'git' | 'structure';
+  }>
+): Promise<DiffResult> {
+  const type = options?.type || 'full';
+  const endpoint = type === 'full' ? '/api/compare' : `/api/compare/${type}`;
+
   try {
-    const response = await fetch(BACKEND_API_URL, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -34,8 +46,10 @@ export async function compareLegalTextsAsync(oldText: string, newText: string): 
         old_text: oldText,
         new_text: newText,
         options: {
-          detect_entities: true,
-          ner_mode: 'regex', // configurable: 'regex', 'bert', 'hybrid'
+          detect_entities: options?.detectEntities ?? true,
+          ner_mode: 'regex',
+          align_threshold: options?.alignThreshold ?? 0.6,
+          format_text: options?.formatText ?? true,
         },
       }),
     });
@@ -47,7 +61,7 @@ export async function compareLegalTextsAsync(oldText: string, newText: string): 
     const data = await response.json();
     return transformBackendResponse(data);
   } catch (error) {
-    console.warn('Backend comparison failed, falling back to local processing:', error);
+    console.warn(`Backend comparison (${type}) failed, falling back to local processing:`, error);
     return compareLegalTexts(oldText, newText);
   }
 }
@@ -56,40 +70,46 @@ export async function compareLegalTextsAsync(oldText: string, newText: string): 
  * Transform backend response to frontend DiffResult format
  */
 function transformBackendResponse(data: any): DiffResult {
-  // Backend returns snake_case, frontend uses camelCase
-  // Need to map if there are differences.
-  // Based on Rust structs, keys might need mapping.
-
-  // Rust: changes: [{ type: "add", new_line: 1, ... }]
-  // TS: changes: [{ type: "add", newLine: 1, ... }]
+  // Backend now returns camelCase, matching frontend types.
+  // We still map explicitly to ensure type safety and handle optional fields correctly.
 
   const changes = data.changes.map((c: any) => ({
     type: c.type,
-    oldLine: c.old_line,
-    newLine: c.new_line,
-    oldContent: c.old_content,
-    newContent: c.new_content,
+    oldLine: c.oldLine,
+    newLine: c.newLine,
+    oldContent: c.oldContent,
+    newContent: c.newContent,
+    entities: c.entities,
   }));
 
   // Transform article changes if present
   let articleChanges = undefined;
-  if (data.article_changes) {
-    articleChanges = data.article_changes.map((ac: any) => ({
-      type: ac.type, // types are already lowercase strings
-      oldArticle: ac.old_article ? {
-        number: ac.old_article.number,
-        content: ac.old_article.content,
-        title: ac.old_article.title,
-        startLine: ac.old_article.start_line || 0,
+  if (data.articleChanges) {
+    articleChanges = data.articleChanges.map((ac: any) => ({
+      type: ac.type,
+      oldArticle: ac.oldArticle ? {
+        number: ac.oldArticle.number,
+        content: ac.oldArticle.content,
+        title: ac.oldArticle.title,
+        startLine: ac.oldArticle.startLine || 0,
+        parents: ac.oldArticle.parents || [],
       } : undefined,
-      newArticles: ac.new_articles ? ac.new_articles.map((na: any) => ({
+      newArticles: ac.newArticles ? ac.newArticles.map((na: any) => ({
         number: na.number,
         content: na.content,
         title: na.title,
-        startLine: na.start_line || 0,
+        startLine: na.startLine || 0,
+        parents: na.parents || [],
       })) : undefined,
       similarity: ac.similarity,
-      details: ac.details,
+      details: ac.details ? ac.details.map((d: any) => ({
+         type: d.type,
+         oldLine: d.oldLine,
+         newLine: d.newLine,
+         oldContent: d.oldContent,
+         newContent: d.newContent
+      })) : undefined,
+      tags: ac.tags || [],
     }));
   }
 
@@ -97,12 +117,12 @@ function transformBackendResponse(data: any): DiffResult {
     similarity: data.similarity,
     changes,
     articleChanges,
-    entities: data.entities.map((e: any) => ({
+    entities: data.entities ? data.entities.map((e: any) => ({
       type: e.type,
       value: e.value,
       confidence: e.confidence,
       position: e.position,
-    })),
+    })) : [],
     stats: data.stats,
   };
 }
