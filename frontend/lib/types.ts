@@ -1,4 +1,11 @@
 // Legal article structure types
+export interface CompareOptions {
+  detectEntities: boolean;
+  granularity: 'line' | 'word' | 'char';
+  nerMode?: 'regex' | 'bert' | 'hybrid';
+  alignThreshold?: number;
+  formatText?: boolean;
+}
 export interface ArticleNode {
   type: 'chapter' | 'section' | 'article' | 'clause' | 'item';
   number: string;

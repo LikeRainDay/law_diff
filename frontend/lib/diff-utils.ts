@@ -23,7 +23,15 @@ export async function checkBackendHealth(): Promise<boolean> {
  * Compare two legal texts using the Rust backend API
  * Falls back to local processing if backend is unavailable
  */
-export async function compareLegalTextsAsync(oldText: string, newText: string): Promise<DiffResult> {
+export async function compareLegalTextsAsync(
+  oldText: string,
+  newText: string,
+  options?: Partial<{
+    alignThreshold: number;
+    formatText: boolean;
+    detectEntities: boolean;
+  }>
+): Promise<DiffResult> {
   try {
     const response = await fetch(BACKEND_API_URL, {
       method: 'POST',
@@ -34,8 +42,10 @@ export async function compareLegalTextsAsync(oldText: string, newText: string): 
         old_text: oldText,
         new_text: newText,
         options: {
-          detect_entities: true,
-          ner_mode: 'regex', // configurable: 'regex', 'bert', 'hybrid'
+          detect_entities: options?.detectEntities ?? true,
+          ner_mode: 'regex',
+          align_threshold: options?.alignThreshold ?? 0.6,
+          format_text: options?.formatText ?? true,
         },
       }),
     });

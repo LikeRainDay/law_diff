@@ -1,4 +1,5 @@
 pub mod tokenizer;
+pub mod formatter;
 pub mod ner_trait;
 pub mod regex_ner;
 pub mod bert_ner;

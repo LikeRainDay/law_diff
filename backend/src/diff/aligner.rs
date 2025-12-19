@@ -2,12 +2,11 @@ use crate::ast::parse_article;
 use crate::diff::similarity::{calculate_composite_similarity, SimilarityScore};
 use crate::models::{ArticleChange, ArticleChangeType, ArticleInfo, ArticleNode, NodeType};
 use crate::nlp::tokenizer::tokenize_to_set;
+use crate::nlp::formatter::normalize_legal_text;
 
-
-// Thresholds for alignment decisions
-const HIGH_SIMILARITY_THRESHOLD: f32 = 0.75;  // Strong match
-const MEDIUM_SIMILARITY_THRESHOLD: f32 = 0.5;  // Potential split/merge
-const EXACT_MATCH_THRESHOLD: f32 = 0.98;       // Unchanged
+// Base thresholds - will be adjusted by user input
+const EXACT_MATCH_THRESHOLD: f32 = 0.98;
+const MEDIUM_SIMILARITY_THRESHOLD: f32 = 0.4;
 
 /// Represents a candidate alignment between old and new articles
 #[derive(Debug, Clone)]
@@ -19,10 +18,22 @@ struct AlignmentCandidate {
 }
 
 /// Main function to perform intelligent structural alignment of legal articles
-pub fn align_articles(old_text: &str, new_text: &str) -> Vec<ArticleChange> {
+pub fn align_articles(
+    old_text: &str,
+    new_text: &str,
+    threshold: f32,
+    format_text: bool
+) -> Vec<ArticleChange> {
+    // 0. Normalize text if requested
+    let (processed_old, processed_new) = if format_text {
+        (normalize_legal_text(old_text), normalize_legal_text(new_text))
+    } else {
+        (old_text.to_string(), new_text.to_string())
+    };
+
     // 1. Parse and flatten articles
-    let old_ast = parse_article(old_text);
-    let new_ast = parse_article(new_text);
+    let old_ast = parse_article(&processed_old);
+    let new_ast = parse_article(&processed_new);
 
     let old_articles = flatten_articles(&old_ast);
     let new_articles = flatten_articles(&new_ast);
@@ -47,6 +58,7 @@ pub fn align_articles(old_text: &str, new_text: &str) -> Vec<ArticleChange> {
         &mut used_old,
         &mut used_new,
         &mut changes,
+        threshold,
     );
 
     // Stage 2: Detect split patterns (1:N)
@@ -116,6 +128,7 @@ fn find_one_to_one_matches(
     used_old: &mut [bool],
     used_new: &mut [bool],
     changes: &mut Vec<ArticleChange>,
+    threshold: f32,
 ) {
     for (old_idx, old_art) in old_articles.iter().enumerate() {
         if used_old[old_idx] {
@@ -131,7 +144,8 @@ fn find_one_to_one_matches(
             }
 
             let score = similarity_matrix[old_idx][new_idx].composite;
-            if score > best_score && score >= HIGH_SIMILARITY_THRESHOLD {
+            // Use the dynamic threshold instead of hardcoded HIGH_SIMILARITY_THRESHOLD
+            if score > best_score && score >= threshold {
                 best_score = score;
                 best_new_idx = Some(new_idx);
             }

@@ -52,7 +52,12 @@ async fn compare(
     let mut result = compare_texts(&payload.old_text, &payload.new_text, entities);
 
     // Perform structural article alignment (The "Pro" feature)
-    let article_changes = align_articles(&payload.old_text, &payload.new_text);
+    let article_changes = align_articles(
+        &payload.old_text,
+        &payload.new_text,
+        payload.options.align_threshold,
+        payload.options.format_text
+    );
     result.article_changes = Some(article_changes);
 
     Ok(Json(result))

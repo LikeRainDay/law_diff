@@ -151,7 +151,16 @@ pub struct CompareOptions {
     #[serde(default = "default_word_granularity")]
     pub granularity: String,
     #[serde(default)]
+
     pub ner_mode: Option<String>, // "regex", "bert", or "hybrid"
+    #[serde(default = "default_align_threshold")]
+    pub align_threshold: f32,
+    #[serde(default = "default_true")]
+    pub format_text: bool,
+}
+
+fn default_align_threshold() -> f32 {
+    0.6
 }
 
 fn default_true() -> bool {

@@ -1,358 +1,367 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import {
+  ArrowRightLeft,
+  FileDiff,
+  GitCommit,
+  LayoutTemplate,
+  RotateCcw,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitBranch, ArrowLeftRight, Sparkles, ChevronRight, Activity, Zap, Shield, Search, Copy, Check } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { compareLegalTextsAsync } from '@/lib/diff-utils';
+import { DiffResult, ViewMode } from '@/lib/types';
 import GitDiffView from '@/components/diff/GitDiffView';
 import SideBySideView from '@/components/diff/SideBySideView';
 import AnchorNavigation from '@/components/diff/AnchorNavigation';
-import { ArticleChangeView } from '@/components/diff/ArticleChangeView';
 import EntityHighlight from '@/components/legal/EntityHighlight';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { Footer } from '@/components/layout/Footer';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { compareLegalTextsAsync, checkBackendHealth } from '@/lib/diff-utils';
-import { DiffResult, ViewMode } from '@/lib/types';
+import { AlignedArticleView } from '@/components/diff/AlignedArticleView';
+import { ComparisonSettings } from '@/components/diff/ComparisonSettings';
 import { cn } from '@/lib/utils';
-import { SITE_CONFIG } from '@/lib/constants';
 
-// Sample legal text for demonstration
-const SAMPLE_OLD_TEXT = `第一条 为了规范网络安全管理，保护网络信息安全，根据《中华人民共和国网络安全法》等法律法规，制定本办法。
+// Examples
+const EXAMPLE_OLD = `第一条 为了加强网络安全管理，保障网络安全，制定本办法。
+第二条 网络运营者应当履行下列安全保护义务：
+（一）制定内部安全管理制度和操作规程；
+（二）采取防范计算机病毒和网络攻击的技术措施；
+（三）监测、记录网络运行状态、网络安全事件的技术措施，并按照规定留存相关的网络日志不少于六个月。
+第三条 违反本办法规定的，由有关主管部门责令改正，给予警告；拒不改正或者导致危害网络安全等后果的，处一万元以上十万元以下罚款。`;
 
-第二条 本办法适用于在中华人民共和国境内从事网络运营、网络服务等活动的单位和个人。
-
-第三条 网络运营者应当按照网络安全等级保护制度的要求，履行下列安全保护义务：
-（一）建立和完善网络安全管理制度；
-（二）采取技术措施，防范计算机病毒和网络攻击；
-（三）对违法信息和不良信息进行监测和处理；
-（四）保存网络日志不少于六个月。
-
-第四条  违反本办法规定的，依法给予警告，可以并处一万元以上三万元以下罚款；情节严重的，处三万元以上十万元以下罚款。`;
-
-const SAMPLE_NEW_TEXT = `第一条 为了规范网络安全管理，维护网络空间安全，保护网络信息安全和公民个人信息，根据《中华人民共和国网络安全法》《中华人民共和国数据安全法》等法律法规，制定本办法。
-
-第二条 本办法适用于在中华人民共和国境内从事网络运营、网络服务、数据处理等活动的单位和个人。
-
-第三条 网络运营者应当按照网络安全等级保护制度和数据分类分级保护制度的要求，履行下列安全保护义务：
-（一）建立和完善网络安全和数据安全管理制度；
-（二）采取技术措施和加密措施，防范计算机病毒、网络攻击和数据泄露；
-（三）对违法信息和不良信息进行实时监测和及时处理；
-（四）保存网络日志和操作记录不少于十二个月。
-
-第四条 违反本办法规定的，依法给予警告，可以并处二万元以上五万元以下罚款；情节严重的，处五万元以上二十万元以下罚款，并可以责令暂停相关业务或者吊销许可证。`;
+const EXAMPLE_NEW = `第一条 为了加强网络安全管理，保障网络安全，维护国家安全和社会公共利益，根据《中华人民共和国网络安全法》、《中华人民共和国数据安全法》，制定本办法。
+第二条 网络运营者应当履行下列网络安全保护义务，建立网络安全和数据安全保护制度：
+（一）制定内部安全管理制度和操作规程，确定网络安全负责人；
+（二）采取防范计算机病毒和网络攻击、网络侵入等危害网络安全行为的技术措施；
+（三）监测、记录网络运行状态、网络安全事件的技术措施，并按照规定留存相关的网络日志不少于十二个月。
+第三条 实行数据分类分级保护制度。网络运营者应当按照网络安全等级保护制度的要求，履行下列安全保护义务。
+第四条 违反本办法规定的，由有关主管部门责令改正，给予警告；拒不改正或者导致危害网络安全等后果的，处五万元以上二十万元以下罚款；情节严重的，吊销许可证。`;
 
 export default function Home() {
-  const [oldText, setOldText] = useState(SAMPLE_OLD_TEXT);
-  const [newText, setNewText] = useState(SAMPLE_NEW_TEXT);
+  const [oldText, setOldText] = useState(EXAMPLE_OLD);
+  const [newText, setNewText] = useState(EXAMPLE_NEW);
   const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
+  const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('git');
-  const [isComparing, setIsComparing] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [backendOnline, setBackendOnline] = useState(false);
 
+  // Advanced Settings
+  const [alignThreshold, setAlignThreshold] = useState(0.6);
+  const [formatText, setFormatText] = useState(true);
+  const [showIdentical, setShowIdentical] = useState(true);
+
+  // Initial comparison on mount
   useEffect(() => {
-    setMounted(true);
-    // Dark mode handled by ThemeProvider
-
-
-    // Check backend status periodically
-    const checkStatus = async () => {
-      const isOnline = await checkBackendHealth();
-      setBackendOnline(isOnline);
-    };
-
-    checkStatus();
-    const interval = setInterval(checkStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    handleCompare();
+  }, []); // Run once on mount
 
   const handleCompare = async () => {
-    setIsComparing(true);
+    if (!oldText && !newText) return;
+
+    setLoading(true);
+    // Artificial delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     try {
-      // Use async backend comparison
-      const result = await compareLegalTextsAsync(oldText, newText);
+      const result = await compareLegalTextsAsync(oldText, newText, {
+        alignThreshold,
+        formatText,
+        detectEntities: true
+      });
       setDiffResult(result);
+
+      // Auto-switch to structure view if structural changes detected
+      if (result.articleChanges && result.articleChanges.length > 0) {
+        setViewMode('article-structure');
+      } else {
+        setViewMode('git');
+      }
     } catch (error) {
-      console.error("Comparison failed", error);
+      console.error("Comparison failed:", error);
     } finally {
-      setIsComparing(false);
+      setLoading(false);
     }
   };
 
-  if (!mounted) return null;
+  const clearInputs = () => {
+    setOldText('');
+    setNewText('');
+    setDiffResult(null);
+  };
+
+  const useExample = () => {
+    setOldText(EXAMPLE_OLD);
+    setNewText(EXAMPLE_NEW);
+  };
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden selection:bg-accent/30 selection:text-white relative font-sans">
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern opacity-[0.05]"></div>
-        <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] animate-pulse-glow opacity-30"></div>
-        <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-accent/10 rounded-full blur-[100px] animate-float opacity-30"></div>
-        <div className="scanline-overlay opacity-[0.03]"></div>
-      </div>
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary relative font-sans">
 
-      {/* Header */}
-      <header className="glass border-b border-border/10 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative group cursor-pointer">
-                <div className="absolute inset-0 bg-accent blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-                <div className="relative w-10 h-10 bg-background/50 border border-border/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:border-accent/50 transition-colors">
-                  <Shield className="w-5 h-5 text-primary" />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                  <span className="text-foreground">Legale</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Mind</span>
-                </h1>
-              </div>
-            </div>
+      {/* Background Ambience */}
+      <div className="fixed inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none z-0" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-            <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center px-3 py-1.5 rounded-full border border-border/10 bg-muted/20 backdrop-blur-sm gap-3">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-yellow-500/80" />
-                  <span className="text-xs font-medium text-muted-foreground">Rust Core</span>
-                </div>
-                <div className="w-[1px] h-3 bg-border/20"></div>
-                <div className="flex items-center gap-2">
-                  <Activity className={cn("w-3.5 h-3.5 transition-colors", backendOnline ? "text-green-500" : "text-red-500")} />
-                  <span className={cn("text-xs font-medium transition-colors", backendOnline ? "text-green-500" : "text-red-500")}>
-                    {backendOnline ? 'Online' : 'Offline'}
-                  </span>
-                </div>
+      <main className="relative z-10 container mx-auto p-6 lg:p-12 space-y-8 max-w-7xl">
+
+        {/* Header */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/40">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-primary/10 rounded-xl ring-1 ring-primary/20">
+                <Sparkles className="w-6 h-6 text-primary" />
               </div>
-              <ThemeToggle />
+              <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
+                法律条文智能比对
+              </h1>
             </div>
+            <p className="text-muted-foreground pl-14">
+              基于 NLP 与 AST 及其精确的法条变更分析工具
+            </p>
           </div>
-        </div>
-      </header>
+          <div className="flex items-center gap-3 pl-14 md:pl-0">
+             <ThemeToggle />
+             <Button variant="outline" onClick={clearInputs} className="gap-2">
+               <RotateCcw className="w-4 h-4" /> Reset
+             </Button>
+             <Button variant="outline" onClick={useExample} className="gap-2">
+                 Example
+             </Button>
+          </div>
+        </header>
 
-      <main className="relative z-10 max-w-[1600px] mx-auto px-6 py-8">
+        {/* Input Area */}
+        <section className="grid md:grid-cols-2 gap-6">
+          <Card className="glass-card border-l-4 border-l-red-500/50 shadow-sm hover:shadow-md transition-shadow">
+             <CardHeader className="pb-3">
+               <CardTitle className="flex items-center gap-2 text-base font-medium">
+                 <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                 旧版本文本 (Source)
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+               <Textarea
+                 value={oldText}
+                 onChange={(e) => setOldText(e.target.value)}
+                 placeholder="粘贴旧版法律条文..."
+                 className="min-h-[280px] font-mono text-sm leading-relaxed resize-none bg-background/50 focus:bg-background transition-colors border-none ring-1 ring-border shadow-inner"
+               />
+             </CardContent>
+          </Card>
+
+          <Card className="glass-card border-l-4 border-l-green-500/50 shadow-sm hover:shadow-md transition-shadow">
+             <CardHeader className="pb-3">
+               <CardTitle className="flex items-center gap-2 text-base font-medium">
+                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                 新版本文本 (Target)
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+               <Textarea
+                 value={newText}
+                 onChange={(e) => setNewText(e.target.value)}
+                 placeholder="粘贴新版法律条文..."
+                 className="min-h-[280px] font-mono text-sm leading-relaxed resize-none bg-background/50 focus:bg-background transition-colors border-none ring-1 ring-border shadow-inner"
+               />
+             </CardContent>
+          </Card>
+        </section>
+
+        {/* Action Bar */}
+        <div className="flex justify-center py-4">
+          <Button
+            size="lg"
+            onClick={handleCompare}
+            disabled={loading}
+            className="w-full md:w-auto min-w-[240px] h-12 text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Zap className="w-4 h-4 animate-spin" /> 分析中...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <ArrowRightLeft className="w-4 h-4" /> 开始比对分析
+              </span>
+            )}
+          </Button>
+        </div>
+
+        {/* Results Area */}
         <AnimatePresence mode="wait">
-          {!diffResult ? (
+          {diffResult && (
             <motion.div
-              key="input"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="space-y-8"
-            >
-              <div className="text-center space-y-6 py-12 md:py-16">
-                <Badge variant="secondary" className="px-4 py-1.5 text-sm font-normal bg-accent/10 text-accent border-accent/20 animate-fade-in">
-                  <Sparkles className="w-3.5 h-3.5 mr-2" />
-                  AI-Powered Analysis v2.0
-                </Badge>
-                <div className="space-y-4">
-                  <h2 className="text-4xl md:text-6xl font-bold text-foreground tracking-tight max-w-4xl mx-auto leading-tight">
-                    Intelligent <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">Legal Comparison</span>
-                  </h2>
-                  <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                    Instantly analyze differences between legal texts with structure-aware precision.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid lg:grid-cols-2 gap-6">
-                <Card className="border-border/50 bg-card/60">
-                    <CardContent className="p-0">
-                        <div className="p-4 border-b border-border/10 flex items-center justify-between bg-muted/20">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
-                                <span className="text-sm font-medium text-muted-foreground">Original Text</span>
-                            </div>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => navigator.clipboard.readText().then(setOldText)}>
-                                <Copy className="w-3 h-3 mr-2" />
-                                Paste
-                            </Button>
-                        </div>
-                        <Textarea
-                            value={oldText}
-                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOldText(e.target.value)}
-                            className="w-full h-[400px] border-0 rounded-none bg-transparent resize-none p-6 font-mono text-sm leading-7 focus-visible:ring-0"
-                            placeholder="Paste original text here..."
-                            spellCheck={false}
-                        />
-                          <div className="px-4 py-2 bg-muted/20 border-t border-border/10 text-right">
-                             <span className="text-xs text-muted-foreground font-mono">{oldText.length} chars</span>
-                         </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-border/50 bg-card/60">
-                    <CardContent className="p-0">
-                        <div className="p-4 border-b border-border/10 flex items-center justify-between bg-muted/20">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
-                                <span className="text-sm font-medium text-muted-foreground">Modified Text</span>
-                            </div>
-                             <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => navigator.clipboard.readText().then(setNewText)}>
-                                <Copy className="w-3 h-3 mr-2" />
-                                Paste
-                            </Button>
-                        </div>
-                        <Textarea
-                            value={newText}
-                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewText(e.target.value)}
-                            className="w-full h-[400px] border-0 rounded-none bg-transparent resize-none p-6 font-mono text-sm leading-7 focus-visible:ring-0"
-                            placeholder="Paste new version here..."
-                            spellCheck={false}
-                        />
-                          <div className="px-4 py-2 bg-muted/20 border-t border-border/10 text-right">
-                             <span className="text-xs text-muted-foreground font-mono">{newText.length} chars</span>
-                         </div>
-                    </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex justify-center pt-8">
-                <Button
-                    size="xl"
-                    variant="glow"
-                    onClick={handleCompare}
-                    disabled={!oldText || !newText || isComparing}
-                    className="w-full md:w-auto min-w-[240px]"
-                >
-                    {isComparing ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Start Comparison
-                        <ChevronRight className="w-4 h-4 ml-1 opacity-50" />
-                      </>
-                    )}
-                </Button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="results"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
+              exit={{ opacity: 0 }}
               className="space-y-6"
             >
               {/* Toolbar */}
-              <div className="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 sticky top-24 z-40">
-                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setDiffResult(null)} className="text-muted-foreground hover:text-foreground">
-                        <ArrowLeftRight className="w-4 h-4 mr-2" />
-                        New Compare
-                    </Button>
-                    <div className="w-[1px] h-6 bg-border/20 mx-2"></div>
-                    <div className="flex bg-secondary/50 p-1 rounded-lg">
-                        <Button
-                            variant={viewMode === 'git' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setViewMode('git')}
-                            className="h-8 text-xs"
-                        >
-                            Git View
-                        </Button>
-                        <Button
-                            variant={viewMode === 'sidebyside' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setViewMode('sidebyside')}
-                            className="h-8 text-xs"
-                        >
-                            Side by Side
-                        </Button>
-                        <Button
-                            variant={viewMode === 'article-structure' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => setViewMode('article-structure')}
-                            className="h-8 text-xs"
-                        >
-                            Structure
-                        </Button>
-                    </div>
-                 </div>
+              <div className="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 sticky top-4 z-40 bg-background/80 backdrop-blur-md shadow-lg border border-border/50">
+                <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                  <Button
+                    variant={viewMode === 'git' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('git')}
+                    className="gap-2"
+                  >
+                    <GitCommit className="w-4 h-4" /> Git Mode
+                  </Button>
+                  <Button
+                    variant={viewMode === 'sidebyside' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('sidebyside')}
+                    className="gap-2"
+                  >
+                    <LayoutTemplate className="w-4 h-4" /> Split View
+                  </Button>
+                  <Button
+                    variant={viewMode === 'article-structure' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('article-structure')}
+                    className="gap-2 relative"
+                  >
+                    <FileDiff className="w-4 h-4" />
+                    Structure Pro
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                    </span>
+                  </Button>
+                </div>
 
-                 <div className="flex items-center gap-3 pr-2">
-                     <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Similarity</span>
-                     <Badge variant="outline" className="text-base px-3 py-1 border-accent/30 bg-accent/5 text-accent font-mono">
-                         {(diffResult.similarity * 100).toFixed(1)}%
-                     </Badge>
-                 </div>
+                <div className="flex items-center gap-4">
+                  <ComparisonSettings
+                     threshold={alignThreshold}
+                     onThresholdChange={setAlignThreshold}
+                     formatText={formatText}
+                     onFormatTextChange={setFormatText}
+                     showIdentical={showIdentical}
+                     onShowIdenticalChange={setShowIdentical}
+                  />
+                  <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold border border-primary/20">
+                     <CheckCircle2 className="w-4 h-4" />
+                     Similarity {(diffResult.similarity * 100).toFixed(1)}%
+                  </div>
+                </div>
               </div>
 
                <div className="grid lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
-                     {[
-                        { label: 'Additions', value: diffResult.stats.additions, color: 'text-green-400', bg: 'bg-green-500/10' },
-                        { label: 'Deletions', value: diffResult.stats.deletions, color: 'text-red-400', bg: 'bg-red-500/10' },
-                        { label: 'Modifications', value: diffResult.stats.modifications, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                        { label: 'Unchanged', value: diffResult.stats.unchanged, color: 'text-muted-foreground', bg: 'bg-muted/10' }
-                    ].map((stat) => (
-                        <Card key={stat.label} className="bg-card/40 border-border/10 overflow-hidden">
-                            <CardContent className="p-4 flex flex-col items-center justify-center text-center relative">
-                                <span className={cn("text-3xl font-bold font-mono py-1", stat.color)}>{stat.value}</span>
-                                <span className="text-xs text-muted-foreground uppercase tracking-widest">{stat.label}</span>
-                                <div className={cn("absolute inset-x-0 bottom-0 h-1 opacity-50", stat.color.replace('text-', 'bg-'))}></div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+                 {/* Main Viewer */}
+                 <div className="lg:col-span-9 order-2 lg:order-1">
+                   <Card className="overflow-hidden min-h-[600px] bg-card/40 border-border/40 shadow-xl">
+                     <CardContent className="p-0">
+                       {viewMode === 'git' && (
+                         <div className="p-4">
+                           <GitDiffView changes={diffResult.changes} />
+                         </div>
+                       )}
 
-                <div className="lg:col-span-9">
-                    <Card className="overflow-hidden min-h-[600px] bg-card/40 border-border/40">
-                        <CardContent className="p-0">
-                             {viewMode === 'git' && (
-                                <GitDiffView changes={diffResult.changes} />
-                             )}
-                             {viewMode === 'sidebyside' && (
-                               <SideBySideView changes={diffResult.changes} />
-                             )}
-                             {viewMode === 'article-structure' && diffResult.articleChanges && (
-                               <div className="p-6">
-                                 <div className="mb-6 flex items-center justify-between">
-                                   <div>
-                                       <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                                         <Sparkles className="w-4 h-4 text-accent" />
-                                         Structural Analysis
-                                       </h3>
-                                       <p className="text-sm text-muted-foreground mt-0.5">
-                                         Detects content shifts and structural updates.
-                                       </p>
-                                   </div>
-                                 </div>
-                                 <ArticleChangeView changes={diffResult.articleChanges.filter(c => c.type !== 'unchanged' || c.oldArticle?.number !== 'root')} />
+                       {viewMode === 'sidebyside' && (
+                         <div className="p-4">
+                           <SideBySideView changes={diffResult.changes} />
+                         </div>
+                       )}
+
+                       {viewMode === 'article-structure' && (
+                          <div className="p-6">
+                            {diffResult.articleChanges ? (
+                              <AlignedArticleView
+                                changes={diffResult.articleChanges}
+                                showIdentical={showIdentical}
+                              />
+                            ) : (
+                               <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground gap-4">
+                                  <AlertCircle className="w-12 h-12 opacity-20" />
+                                  <p>未检测到结构化数据，请尝试调整对比设置或重新分析</p>
                                </div>
-                             )}
-                        </CardContent>
-                    </Card>
-                </div>
+                            )}
+                          </div>
+                       )}
+                     </CardContent>
+                   </Card>
+                 </div>
 
-                <div className="lg:col-span-3 space-y-4">
-                  <Card className="border-border/10 sticky top-[180px]">
-                      <CardContent className="p-4 space-y-4">
-                           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-border/10">
-                             <Search className="w-3.5 h-3.5" />
-                             Insights
-                           </h3>
-                           <EntityHighlight entities={diffResult.entities} />
-                           <div className="py-2">
-                               <AnchorNavigation changes={diffResult.changes} />
-                           </div>
+                 {/* Sidebar */}
+                 <div className="lg:col-span-3 order-1 lg:order-2 space-y-6">
+                   {/* Mini Map */}
+                   <Card className="glass-card shadow-md">
+                      <CardHeader className="py-3 px-4 border-b border-border/10">
+                        <CardTitle className="text-sm font-medium">变更导航</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <AnchorNavigation
+                          changes={diffResult.changes}
+                          className="max-h-[400px]"
+                        />
                       </CardContent>
-                  </Card>
-                </div>
-              </div>
+                   </Card>
+
+                   {/* Stats */}
+                   <div className="grid grid-cols-2 gap-3">
+                      <Card className="bg-green-500/5 border-green-500/20">
+                         <div className="p-3 text-center">
+                           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                             {diffResult.stats.additions}
+                           </div>
+                           <div className="text-xs text-muted-foreground">新增</div>
+                         </div>
+                      </Card>
+                      <Card className="bg-red-500/5 border-red-500/20">
+                         <div className="p-3 text-center">
+                           <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                             {diffResult.stats.deletions}
+                           </div>
+                           <div className="text-xs text-muted-foreground">删除</div>
+                         </div>
+                      </Card>
+                      <Card className="bg-amber-500/5 border-amber-500/20">
+                         <div className="p-3 text-center">
+                           <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                             {diffResult.stats.modifications}
+                           </div>
+                           <div className="text-xs text-muted-foreground">修改</div>
+                         </div>
+                      </Card>
+                      <Card className="bg-blue-500/5 border-blue-500/20">
+                         <div className="p-3 text-center">
+                           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                             {diffResult.stats.unchanged}
+                           </div>
+                           <div className="text-xs text-muted-foreground">未变</div>
+                         </div>
+                      </Card>
+                   </div>
+
+                   {/* Entities */}
+                   <Card className="glass-card overflow-hidden">
+                     <CardHeader className="py-3 px-4 border-b border-border/10">
+                       <CardTitle className="text-sm font-medium">识别的实体</CardTitle>
+                     </CardHeader>
+                     <CardContent className="p-0 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <div className="divide-y divide-border/20">
+<EntityHighlight entities={diffResult.entities} />
+                          {diffResult.entities.length === 0 && (
+                            <div className="p-4 text-center text-xs text-muted-foreground">
+                              未检测到关键法律实体
+                            </div>
+                          )}
+                        </div>
+                     </CardContent>
+                   </Card>
+
+                 </div>
+               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
       </main>
-      <Footer />
     </div>
   );
 }
