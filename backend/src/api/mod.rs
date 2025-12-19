@@ -63,11 +63,14 @@ async fn compare_structure(
         payload.options.align_threshold,
         payload.options.format_text
     );
+
+    // Calculate overall similarity as average
+    let total_sim: f32 = article_changes.iter().map(|c| c.similarity.unwrap_or(0.0)).sum();
+    if !article_changes.is_empty() {
+        result.similarity = total_sim / article_changes.len() as f32;
+    }
+
     result.article_changes = Some(article_changes);
-
-    // Calculate basic stats from article changes if needed, or leave 0
-    // (Frontend calculates its own stats or uses what's provided)
-
     Ok(Json(result))
 }
 

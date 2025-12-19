@@ -1,5 +1,6 @@
 use regex::Regex;
 use std::sync::OnceLock;
+use std::collections::HashSet;
 use crate::models::{ArticleNode, NodeType};
 
 static PART_PATTERN: OnceLock<Regex> = OnceLock::new();
@@ -55,6 +56,13 @@ pub fn parse_article(text: &str) -> ArticleNode {
 
     let mut preamble_buffer: Vec<String> = Vec::new();
     let mut structure_started = false;
+    let mut in_toc = false;
+    let mut seen_markers = HashSet::new();
+
+    let is_likely_toc_entry = |text: &str| -> bool {
+        text.contains("...") || text.contains("···") || text.contains("..") ||
+        text.trim_end().chars().last().map(|c| c.is_ascii_digit()).unwrap_or(false)
+    };
 
     for (line_idx, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
@@ -62,8 +70,201 @@ pub fn parse_article(text: &str) -> ArticleNode {
             continue;
         }
 
-        // Helper to flush preamble if needed
-        let mut check_preamble = |root: &mut ArticleNode| {
+
+        // TOC Detection
+        if !structure_started && (trimmed.contains("目录") || trimmed == "目 录") {
+            in_toc = true;
+        }
+
+        if let Some(caps) = get_article_pattern().captures(trimmed) {
+            let after_marker = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+            if !after_marker.starts_with("规定") && !after_marker.starts_with("之") {
+                // Inline check_preamble
+                if !structure_started && !preamble_buffer.is_empty() {
+                    root.children.push(ArticleNode {
+                        node_type: NodeType::Preamble,
+                        number: "0".to_string(),
+                        title: Some("序言/目录".to_string()),
+                        content: preamble_buffer.join("\n"),
+                        children: Vec::new(),
+                        start_line: 1,
+                    });
+                    preamble_buffer.clear();
+                }
+                structure_started = true;
+                in_toc = false;
+
+                if let Some(clause) = current_clause.take() {
+                    if let Some(ref mut article) = current_article { article.children.push(clause); }
+                }
+                if let Some(article) = current_article.take() {
+                    if let Some(ref mut section) = current_section { section.children.push(article); }
+                    else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
+                    else if let Some(ref mut part) = current_part { part.children.push(article); }
+                    else { root.children.push(article); }
+                }
+
+                current_article = Some(ArticleNode {
+                    node_type: NodeType::Article,
+                    number: caps.get(1).unwrap().as_str().to_string(),
+                    title: None,
+                    content: after_marker.trim().to_string(),
+                    children: Vec::new(),
+                    start_line: line_idx + 1,
+                });
+                current_clause = None;
+                continue;
+            }
+        }
+        // Structural breakout check for TOC
+        if in_toc {
+            let is_structural = get_chapter_pattern().is_match(trimmed) ||
+                               get_section_pattern().is_match(trimmed) ||
+                               get_part_pattern().is_match(trimmed);
+            if is_structural {
+                let marker = if let Some(caps) = get_chapter_pattern().captures(trimmed) {
+                    format!("CH_{}", caps.get(1).unwrap().as_str())
+                } else if let Some(caps) = get_section_pattern().captures(trimmed) {
+                    format!("SEC_{}", caps.get(1).unwrap().as_str())
+                } else if let Some(caps) = get_part_pattern().captures(trimmed) {
+                    format!("PART_{}", caps.get(1).unwrap().as_str())
+                } else { String::new() };
+
+                if !marker.is_empty() {
+                    if seen_markers.contains(&marker) || !is_likely_toc_entry(trimmed) {
+                        in_toc = false;
+                    } else {
+                        seen_markers.insert(marker);
+                    }
+                }
+            }
+        }
+
+        // 2. High-level Structural Elements (Part, Chapter, Section) - Ignored in TOC
+        if !in_toc {
+            // Check for Part (编)
+            if let Some(caps) = get_part_pattern().captures(trimmed) {
+                if !structure_started && !preamble_buffer.is_empty() {
+                    root.children.push(ArticleNode {
+                        node_type: NodeType::Preamble,
+                        number: "0".to_string(),
+                        title: Some("序言/目录".to_string()),
+                        content: preamble_buffer.join("\n"),
+                        children: Vec::new(),
+                        start_line: 1,
+                    });
+                    preamble_buffer.clear();
+                }
+                structure_started = true;
+                in_toc = false;
+                if let Some(article) = current_article.take() {
+                    if let Some(ref mut section) = current_section { section.children.push(article); }
+                    else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
+                    else { root.children.push(article); }
+                }
+                if let Some(chapter) = current_chapter.take() { root.children.push(chapter); }
+
+                current_part = Some(ArticleNode {
+                    node_type: NodeType::Part,
+                    number: caps.get(1).unwrap().as_str().to_string(),
+                    title: caps.get(2).map(|m| m.as_str().to_string()),
+                    content: String::new(),
+                    children: Vec::new(),
+                    start_line: line_idx + 1,
+                });
+                current_chapter = None;
+                current_section = None;
+                current_article = None;
+                current_clause = None;
+                continue;
+            }
+
+            // Check for Chapter (章)
+            if let Some(caps) = get_chapter_pattern().captures(trimmed) {
+                let after_marker = trimmed.get(caps.get(0).unwrap().end()..).unwrap_or("");
+                if !after_marker.starts_with("规定") && !after_marker.starts_with("之") {
+                    if !structure_started && !preamble_buffer.is_empty() {
+                    root.children.push(ArticleNode {
+                        node_type: NodeType::Preamble,
+                        number: "0".to_string(),
+                        title: Some("序言/目录".to_string()),
+                        content: preamble_buffer.join("\n"),
+                        children: Vec::new(),
+                        start_line: 1,
+                    });
+                    preamble_buffer.clear();
+                }
+                structure_started = true;
+                in_toc = false;
+                    if let Some(article) = current_article.take() {
+                        if let Some(ref mut section) = current_section { section.children.push(article); }
+                        else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
+                        else { root.children.push(article); }
+                    }
+                    if let Some(section) = current_section.take() {
+                        if let Some(ref mut chapter) = current_chapter { chapter.children.push(section); }
+                    }
+                    if let Some(mut chapter) = current_chapter.take() {
+                         if let Some(ref mut part) = current_part { part.children.push(chapter); }
+                         else { root.children.push(chapter); }
+                    }
+
+                    current_chapter = Some(ArticleNode {
+                        node_type: NodeType::Chapter,
+                        number: caps.get(1).unwrap().as_str().to_string(),
+                        title: if after_marker.is_empty() { None } else { Some(after_marker.trim().to_string()) },
+                        content: String::new(),
+                        children: Vec::new(),
+                        start_line: line_idx + 1,
+                    });
+                    current_section = None;
+                    current_article = None;
+                    current_clause = None;
+                    continue;
+                }
+            }
+
+            // Check for Section (节)
+            if let Some(caps) = get_section_pattern().captures(trimmed) {
+                if !structure_started && !preamble_buffer.is_empty() {
+                    root.children.push(ArticleNode {
+                        node_type: NodeType::Preamble,
+                        number: "0".to_string(),
+                        title: Some("序言/目录".to_string()),
+                        content: preamble_buffer.join("\n"),
+                        children: Vec::new(),
+                        start_line: 1,
+                    });
+                    preamble_buffer.clear();
+                }
+                structure_started = true;
+                in_toc = false;
+                if let Some(article) = current_article.take() {
+                    if let Some(ref mut section) = current_section { section.children.push(article); }
+                    else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
+                    else { root.children.push(article); }
+                }
+                if let Some(section) = current_section.take() {
+                    if let Some(ref mut chapter) = current_chapter { chapter.children.push(section); }
+                }
+
+                current_section = Some(ArticleNode {
+                    node_type: NodeType::Section,
+                    number: caps.get(1).unwrap().as_str().to_string(),
+                    title: caps.get(2).map(|m| m.as_str().to_string()),
+                    content: String::new(),
+                    children: Vec::new(),
+                    start_line: line_idx + 1,
+                });
+                current_article = None;
+                current_clause = None;
+                continue;
+            }
+        }
+
+        if !in_toc {
+            // 3. Clause (款)
+        if let Some(caps) = get_clause_pattern().captures(trimmed) {
             if !structure_started && !preamble_buffer.is_empty() {
                 root.children.push(ArticleNode {
                     node_type: NodeType::Preamble,
@@ -71,279 +272,61 @@ pub fn parse_article(text: &str) -> ArticleNode {
                     title: Some("序言/目录".to_string()),
                     content: preamble_buffer.join("\n"),
                     children: Vec::new(),
-                    start_line: 0, // Preamble usually starts at top
+                    start_line: 1,
                 });
                 preamble_buffer.clear();
             }
             structure_started = true;
-        };
-
-        // Check for Part (编)
-        if let Some(caps) = get_part_pattern().captures(trimmed) {
-            check_preamble(&mut root);
-            if let Some(clause) = current_clause.take() {
-                if let Some(ref mut article) = current_article {
-                    article.children.push(clause);
-                }
-            }
-            if let Some(article) = current_article.take() {
-                if let Some(ref mut section) = current_section {
-                    section.children.push(article);
-                } else if let Some(ref mut chapter) = current_chapter {
-                    chapter.children.push(article);
-                } else if let Some(ref mut part) = current_part {
-                    part.children.push(article);
-                } else {
-                    root.children.push(article);
-                }
-            }
-            if let Some(section) = current_section.take() {
-                if let Some(ref mut chapter) = current_chapter {
-                    chapter.children.push(section);
-                }
-            }
-
-            if let Some(mut part) = current_part.take() {
-                if let Some(chapter) = current_chapter.take() {
-                    part.children.push(chapter);
-                }
-                root.children.push(part);
-            } else if let Some(chapter) = current_chapter.take() {
-                root.children.push(chapter);
-            }
-
-            let number = caps.get(1).unwrap().as_str().to_string();
-            let title = caps.get(2).map(|m| m.as_str().to_string());
-
-            current_part = Some(ArticleNode {
-                node_type: NodeType::Part,
-                number,
-                title,
-                content: String::new(),
-                children: Vec::new(),
-                start_line: line_idx + 1,
-            });
-            current_chapter = None;
-            current_section = None;
-            current_article = None;
-            current_clause = None;
-            continue;
-        }
-
-        if let Some(caps) = get_chapter_pattern().captures(trimmed) {
-            check_preamble(&mut root);
-
-            // Skip if it looks like a mid-sentence reference rather than a header
-            // (e.g. "第十章 规定了...")
-            let after_marker = trimmed.get(caps.get(0).unwrap().end()..).unwrap_or("");
-            if after_marker.starts_with("规定") || after_marker.starts_with("之") {
-                // Continuation text
-            } else {
-                if let Some(clause) = current_clause.take() {
-                    if let Some(ref mut article) = current_article {
-                        article.children.push(clause);
-                    }
-                }
-                if let Some(article) = current_article.take() {
-                    if let Some(ref mut section) = current_section {
-                        section.children.push(article);
-                    } else if let Some(ref mut chapter) = current_chapter {
-                        chapter.children.push(article);
-                    } else if let Some(ref mut part) = current_part {
-                        part.children.push(article);
-                    } else {
-                        root.children.push(article);
-                    }
-                }
-                if let Some(section) = current_section.take() {
-                    if let Some(ref mut chapter) = current_chapter {
-                        chapter.children.push(section);
-                    }
-                }
-
-                if let Some(mut chapter) = current_chapter.take() {
-                     if let Some(ref mut part) = current_part {
-                        part.children.push(chapter);
-                     } else {
-                        root.children.push(chapter);
-                     }
-                }
-
-                let number = caps.get(1).unwrap().as_str().to_string();
-                let title = if after_marker.is_empty() { None } else { Some(after_marker.trim().to_string()) };
-
-                current_chapter = Some(ArticleNode {
-                    node_type: NodeType::Chapter,
-                    number,
-                    title,
-                    content: String::new(),
-                    children: Vec::new(),
-                    start_line: line_idx + 1,
-                });
-                current_section = None;
-                current_article = None;
-                current_clause = None;
-                continue;
-            }
-        }
-
-        // Check for section
-        if let Some(caps) = get_section_pattern().captures(trimmed) {
-            check_preamble(&mut root);
-            if let Some(clause) = current_clause.take() {
-                if let Some(ref mut article) = current_article {
-                    article.children.push(clause);
-                }
-            }
-            if let Some(article) = current_article.take() {
-                if let Some(ref mut section) = current_section {
-                    section.children.push(article);
-                } else if let Some(ref mut chapter) = current_chapter {
-                    chapter.children.push(article);
-                } else if let Some(ref mut part) = current_part {
-                    part.children.push(article);
-                } else {
-                    root.children.push(article);
-                }
-            }
-
-            if let Some(section) = current_section.take() {
-                if let Some(ref mut chapter) = current_chapter {
-                    chapter.children.push(section);
-                }
-            }
-
-            let number = caps.get(1).unwrap().as_str().to_string();
-            let title = caps.get(2).map(|m| m.as_str().to_string());
-
-            current_section = Some(ArticleNode {
-                node_type: NodeType::Section,
-                number,
-                title,
-                content: String::new(),
-                children: Vec::new(),
-                start_line: line_idx + 1,
-            });
-            current_article = None;
-            current_clause = None;
-            continue;
-        }
-
-        // Check for article (条)
-        if let Some(caps) = get_article_pattern().captures(trimmed) {
-            check_preamble(&mut root);
-
-            let after_marker = caps.get(3).map(|m| m.as_str()).unwrap_or("");
-
-            // Mid-sentence reference check: "第X条 规定的", "第X条 之内容"
-            if after_marker.starts_with("规定") || after_marker.starts_with("之") {
-                // Ignore as article header, let it fall through to content
-            } else {
-                // FLUSH: Clause -> Article
-                if let Some(clause) = current_clause.take() {
-                    if let Some(ref mut article) = current_article {
-                        article.children.push(clause);
-                    }
-                }
-
-                if let Some(article) = current_article.take() {
-                    if let Some(ref mut section) = current_section {
-                        section.children.push(article);
-                    } else if let Some(ref mut chapter) = current_chapter {
-                        chapter.children.push(article);
-                    } else if let Some(ref mut part) = current_part {
-                        part.children.push(article); // Direct article under part
-                    } else {
-                        root.children.push(article);
-                    }
-                }
-
-                let number = caps.get(1).unwrap().as_str().to_string();
-                let content = after_marker.trim().to_string();
-
-                current_article = Some(ArticleNode {
-                    node_type: NodeType::Article,
-                    number,
-                    title: None, // Title is part of content for articles
-                    content,
-                    children: Vec::new(),
-                    start_line: line_idx + 1,
-                });
-                current_clause = None;
-                continue;
-            }
-        }
-
-        // Check for clause (款)
-        if let Some(caps) = get_clause_pattern().captures(trimmed) {
-            check_preamble(&mut root);
+            in_toc = false;
             let full_marker = caps.get(0).unwrap().as_str();
             let after_marker = trimmed.get(full_marker.len()..).unwrap_or("");
-
-            if after_marker.starts_with("规定") || after_marker.starts_with("之") {
-                // fall through
-            } else {
+            if !after_marker.starts_with("规定") && !after_marker.starts_with("之") {
                 if let Some(clause) = current_clause.take() {
-                    if let Some(ref mut article) = current_article {
-                        article.children.push(clause);
-                    }
+                    if let Some(ref mut article) = current_article { article.children.push(clause); }
                 }
-
-                let number = caps.get(1).unwrap().as_str().to_string();
-                // Persist the marker (一) in the content for display
-                let content = format!("{}{}", full_marker, after_marker.trim());
-
                 current_clause = Some(ArticleNode {
                     node_type: NodeType::Clause,
-                    number,
+                    number: caps.get(1).unwrap().as_str().to_string(),
                     title: None,
-                    content,
+                    content: format!("{}{}", full_marker, after_marker.trim()),
                     children: Vec::new(),
                     start_line: line_idx + 1,
                 });
                 continue;
             }
-        }
+        } }
 
-        // Check for item (项)
+        if !in_toc {
+            // 4. Item (项)
         if let Some(caps) = get_item_pattern().captures(trimmed) {
             let full_marker = caps.get(0).unwrap().as_str();
             let after_marker = trimmed.get(full_marker.len()..).unwrap_or("");
-
-            let number = caps.get(1).unwrap().as_str().to_string();
-            let content = format!("{}{}", full_marker, after_marker.trim());
-
             let item = ArticleNode {
                 node_type: NodeType::Item,
-                number,
+                number: caps.get(1).unwrap().as_str().to_string(),
                 title: None,
-                content,
+                content: format!("{}{}", full_marker, after_marker.trim()),
                 children: Vec::new(),
                 start_line: line_idx + 1,
             };
-
-            if let Some(ref mut clause) = current_clause {
-                clause.children.push(item);
-            } else if let Some(ref mut article) = current_article {
-                article.children.push(item);
-            }
+            if let Some(ref mut clause) = current_clause { clause.children.push(item); }
+            else if let Some(ref mut article) = current_article { article.children.push(item); }
             continue;
-        }
+        } }
 
-        // Fallback: Preamble or Content continuation
+        // 5. Fallback: Preamble or Content continuation
         if !structure_started {
             preamble_buffer.push(trimmed.to_string());
         } else {
-            // TODO: Append to current active node's content?
-            // Currently we ignore noise lines inside structure to keep it clean,
-            // but for legal texts, lines often wrap.
-            // Let's safe append to current article/clause if active.
              if let Some(ref mut clause) = current_clause {
                 clause.content.push('\n');
                 clause.content.push_str(trimmed);
             } else if let Some(ref mut article) = current_article {
                 article.content.push('\n');
                 article.content.push_str(trimmed);
+            } else if let Some(ref mut chapter) = current_chapter {
+                chapter.content.push('\n');
+                chapter.content.push_str(trimmed);
             }
         }
     }
@@ -566,5 +549,41 @@ mod tests {
         assert_eq!(ast.children.len(), 3);
         assert_eq!(ast.children[1].number, "二百零一");
         assert_eq!(ast.children[2].number, "二百零二");
+    }
+
+    #[test]
+    fn test_toc_detection() {
+        let text = r#"目 录
+第一章 总则
+（一）第一款
+第二章 细则
+第一条 正式内容"#;
+        let ast = parse_article(text);
+        // Expect Preamble then Article 1
+        assert_eq!(ast.children.len(), 2);
+        assert_eq!(ast.children[0].node_type, NodeType::Preamble);
+        assert!(ast.children[0].content.contains("第一章"));
+        assert!(ast.children[0].content.contains("第二章"));
+        assert!(ast.children[0].content.contains("（一）"));
+        assert_eq!(ast.children[1].node_type, NodeType::Article);
+        assert_eq!(ast.children[1].number, "一");
+    }
+
+    #[test]
+    fn test_toc_breakout_repetition() {
+        let text = r#"目 录
+第一章 总则
+第二章 细则
+第一章 总则
+第一条 正式内容"#;
+        let ast = parse_article(text);
+        // Expect Preamble (TOC), then Chapter 1, which contains Article 1
+        // Children: Preamble, Chapter 1
+        assert_eq!(ast.children.len(), 2, "Should have Preamble and Chapter 1");
+        assert_eq!(ast.children[0].node_type, NodeType::Preamble);
+        assert_eq!(ast.children[1].node_type, NodeType::Chapter);
+        assert_eq!(ast.children[1].number, "一");
+        assert_eq!(ast.children[1].children.len(), 1);
+        assert_eq!(ast.children[1].children[0].number, "一");
     }
 }

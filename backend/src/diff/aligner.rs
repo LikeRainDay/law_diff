@@ -5,7 +5,7 @@ use crate::nlp::tokenizer::tokenize_to_set;
 use crate::nlp::formatter::normalize_legal_text;
 
 // Base thresholds - will be adjusted by user input
-const EXACT_MATCH_THRESHOLD: f32 = 0.98;
+const EXACT_MATCH_THRESHOLD: f32 = 1.0;
 const MEDIUM_SIMILARITY_THRESHOLD: f32 = 0.4;
 
 fn chinese_to_int(s: &str) -> usize {
@@ -324,19 +324,22 @@ fn find_one_to_one_matches(
                     ArticleChangeType::Unchanged
                 } else if old_art.number == new_art.number {
                     ArticleChangeType::Modified
-                } else if score >= 0.85 {
-                    ArticleChangeType::Renumbered
                 } else {
-                    ArticleChangeType::Moved
+                    // Content matches significantly but number differs
+                    ArticleChangeType::Renumbered
                 };
 
                 let mut tags = Vec::new();
-                match change_type {
-                    ArticleChangeType::Modified => tags.push("modified".to_string()),
-                    ArticleChangeType::Renumbered => tags.push("renumbered".to_string()),
-                    ArticleChangeType::Moved => tags.push("moved".to_string()),
-                    ArticleChangeType::Preamble => tags.push("preamble".to_string()),
-                    _ => {}
+                if change_type == ArticleChangeType::Preamble {
+                    tags.push("preamble".to_string());
+                } else {
+                    if old_art.number != new_art.number {
+                        tags.push("renumbered".to_string());
+                    }
+                    // Use a very high threshold to detect even minor modifications
+                    if score < 0.999 {
+                        tags.push("modified".to_string());
+                    }
                 }
 
                 changes.push(ArticleChange {
@@ -377,8 +380,16 @@ fn find_one_to_one_matches(
             let change_type = if old_art.number == new_art.number {
                 ArticleChangeType::Modified
             } else {
-                ArticleChangeType::Moved
+                ArticleChangeType::Renumbered
             };
+
+            let mut tags = Vec::new();
+            if old_art.number != new_art.number {
+                tags.push("renumbered".to_string());
+            }
+            if best_score < 0.999 {
+                tags.push("modified".to_string());
+            }
 
             changes.push(ArticleChange {
                 change_type,
@@ -386,7 +397,7 @@ fn find_one_to_one_matches(
                 new_articles: Some(vec![new_art.clone()]),
                 similarity: Some(best_score),
                 details: None,
-                tags: vec!["moved".to_string()],
+                tags,
             });
             used_old[old_idx] = true;
             used_new[new_idx] = true;
@@ -539,13 +550,17 @@ fn handle_remaining_articles(
     // Remaining old articles are deleted
     for (old_idx, old_art) in old_articles.iter().enumerate() {
         if !used_old[old_idx] {
+            let mut tags = vec!["deleted".to_string()];
+            if old_art.node_type == NodeType::Preamble {
+                tags.push("preamble".to_string());
+            }
             changes.push(ArticleChange {
                 change_type: ArticleChangeType::Deleted,
                 old_article: Some(old_art.clone()),
                 new_articles: None,
                 similarity: None,
                 details: None,
-                tags: vec!["deleted".to_string()],
+                tags,
             });
         }
     }
@@ -553,13 +568,17 @@ fn handle_remaining_articles(
     // Remaining new articles are added
     for (new_idx, new_art) in new_articles.iter().enumerate() {
         if !used_new[new_idx] {
+            let mut tags = vec!["added".to_string()];
+            if new_art.node_type == NodeType::Preamble {
+                tags.push("preamble".to_string());
+            }
             changes.push(ArticleChange {
                 change_type: ArticleChangeType::Added,
                 old_article: None,
                 new_articles: Some(vec![new_art.clone()]),
                 similarity: None,
                 details: None,
-                tags: vec!["added".to_string()],
+                tags,
             });
         }
     }

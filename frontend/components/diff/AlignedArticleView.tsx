@@ -11,7 +11,8 @@ import {
   GitBranch,
   ArrowRightLeft,
   AlertCircle,
-  Info
+  Info,
+  Activity
 } from 'lucide-react';
 
 interface AlignedArticleViewProps {
@@ -127,7 +128,11 @@ export function AlignedArticleView({ changes, showIdentical = true, language = '
               </div>
             )}
 
-            <AlignedArticleRow change={item.change} language={language} />
+            <AlignedArticleRow
+              change={item.change}
+              language={language}
+              idx={changes.indexOf(item.change)}
+            />
           </React.Fragment>
         ))}
 
@@ -195,7 +200,7 @@ function getTagLabel(tag: string, lang: 'zh' | 'en'): string {
   return labels[tag] || tag;
 }
 
-function AlignedArticleRow({ change, language }: { change: ArticleChange, language: 'zh' | 'en' }) {
+function AlignedArticleRow({ change, language, idx }: { change: ArticleChange, language: 'zh' | 'en', idx: number }) {
   const { type, oldArticle, newArticles, tags } = change;
   const t = (key: string) => getTranslation(key, language);
 
@@ -216,6 +221,7 @@ function AlignedArticleRow({ change, language }: { change: ArticleChange, langua
         "relative rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md",
         type === 'unchanged' ? "border-border/40" : "border-border"
       )}
+      id={`article-row-${idx}`}
     >
       {/* Type Badges */}
       <div className="absolute -top-3 left-6 z-10 flex gap-2">
@@ -223,6 +229,14 @@ function AlignedArticleRow({ change, language }: { change: ArticleChange, langua
            <ChangeTypeBadge key={tag} type={tag} language={language} />
          ))}
       </div>
+
+      {/* Top Right Similarity Badge */}
+      {change.similarity !== undefined && type !== 'added' && type !== 'deleted' && (
+        <div className="absolute -top-3 right-6 z-10 flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800 shadow-sm font-bold text-xs">
+           <Activity className="w-3.5 h-3.5" />
+           <span>{(change.similarity * 100).toFixed(0)}% {language === 'zh' ? '相似度' : 'Similarity'}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-12">
 
@@ -260,7 +274,6 @@ function AlignedArticleRow({ change, language }: { change: ArticleChange, langua
                   type={type}
                   compareTo={oldArticle?.content}
                   isMulti={newArticles.length > 1}
-                  similarity={change.similarity}
                 />
               ))}
             </div>
@@ -403,13 +416,7 @@ function ArticleCard({ article, type, side, compareTo, isMulti, similarity }: Ar
             )}
          </div>
 
-         {/* Similarity Badge (Top Right) */}
-         {similarity !== undefined && side === 'new' && (
-            <div className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800" title="Similarity Score">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500/50"></span>
-                <span>{(similarity * 100).toFixed(0)}%</span>
-            </div>
-         )}
+         {/* Similarity Badge removed from here and moved to parent row */}
       </div>
 
       {/* Content */}

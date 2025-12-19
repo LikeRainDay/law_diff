@@ -183,7 +183,7 @@ const StructureTreeNavigation = React.memo(({ articleChanges, className, languag
 
   const t_title = language === 'zh' ? '结构化视图' : 'Structure View';
 
-  // Group by Parent (Chapter)
+  // Group by Parent (full hierarchy to avoid collisions)
   const groupedChanges = React.useMemo(() => {
     const groups: { title: string, items: { change: ArticleChange, originalIndex: number }[] }[] = [];
     let currentGroup: { title: string, items: { change: ArticleChange, originalIndex: number }[] } | null = null;
@@ -192,7 +192,8 @@ const StructureTreeNavigation = React.memo(({ articleChanges, className, languag
         if (change.type === 'unchanged') return;
 
         const parents = change.newArticles?.[0]?.parents || change.oldArticle?.parents || [];
-        const title = parents[parents.length - 1] || (language === 'zh' ? "其他章节" : "Other Chapters");
+        // Use full hierarchy to avoid grouping "Section 1" of different chapters together wrongly
+        const title = parents.length > 0 ? parents.join(' / ') : (language === 'zh' ? "其他章节" : "Other Chapters");
 
         if (!currentGroup || currentGroup.title !== title) {
             if (currentGroup) groups.push(currentGroup);
