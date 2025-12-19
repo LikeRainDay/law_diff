@@ -421,13 +421,16 @@ fn flatten_articles(node: &ArticleNode) -> Vec<ArticleInfo> {
 fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, parent_stack: &[String]) {
     // If this node is an article or preamble, add it to the list
     if matches!(node.node_type, NodeType::Article | NodeType::Preamble) {
-        list.push(ArticleInfo {
-            number: node.number.clone(),
-            content: node.content.clone(),
-            title: node.title.clone(),
-            start_line: node.start_line,
-            parents: parent_stack.to_vec(),
-        });
+        // Skip technical root node
+        if node.number != "root" {
+            list.push(ArticleInfo {
+                number: node.number.clone(),
+                content: node.content.clone(),
+                title: node.title.clone(),
+                start_line: node.start_line,
+                parents: parent_stack.to_vec(),
+            });
+        }
     }
 
     // Determine if this node contributes to the parent stack for its children

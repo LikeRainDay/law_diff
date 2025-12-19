@@ -167,7 +167,7 @@ pub struct CompareOptions {
     pub ner_mode: Option<String>, // "regex", "bert", or "hybrid"
     #[serde(default = "default_align_threshold")]
     pub align_threshold: f32,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub format_text: bool,
 }
 

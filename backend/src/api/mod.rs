@@ -14,45 +14,73 @@ use crate::{
 };
 
 /// Compare two legal texts
-async fn compare(
-    Json(payload): Json<CompareRequest>,
-) -> Result<Json<DiffResult>, StatusCode> {
-    // Determine NER mode from options or use default
+// Helper to extract entities
+fn extract_entities_helper(payload: &CompareRequest) -> Vec<crate::models::Entity> {
     let ner_mode = payload.options.ner_mode
         .as_ref()
         .and_then(|s| NERMode::from_str(s.as_str()))
         .unwrap_or_default();
 
-    tracing::info!("Using NER mode: {:?}", ner_mode);
+    if payload.options.detect_entities {
+        if let Ok(ner_engine) = create_ner_engine(ner_mode) {
+            let mut all_entities = Vec::new();
+            if let Ok(e) = ner_engine.extract_entities(&payload.old_text) {
+                all_entities.extend(e);
+            }
+            if let Ok(e) = ner_engine.extract_entities(&payload.new_text) {
+                all_entities.extend(e);
+            }
+            return all_entities;
+        }
+    }
+    Vec::new()
+}
 
-    // Extract entities from both texts
-    let entities = if payload.options.detect_entities {
-        let ner_engine = create_ner_engine(ner_mode)
-            .map_err(|e| {
-                tracing::error!("Failed to create NER engine: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+/// Compare two legal texts (Git/Line Diff Only)
+async fn compare_git(
+    Json(payload): Json<CompareRequest>,
+) -> Result<Json<DiffResult>, StatusCode> {
+    let entities = extract_entities_helper(&payload);
+    let result = compare_texts(&payload.old_text, &payload.new_text, entities);
+    Ok(Json(result))
+}
 
-        tracing::info!("Using NER engine: {}", ner_engine.name());
-
-        let mut all_entities = Vec::new();
-        all_entities.extend(
-            ner_engine.extract_entities(&payload.old_text)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        );
-        all_entities.extend(
-            ner_engine.extract_entities(&payload.new_text)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        );
-        all_entities
-    } else {
-        Vec::new()
+/// Compare two legal texts (Structure/AST Diff Only)
+async fn compare_structure(
+    Json(payload): Json<CompareRequest>,
+) -> Result<Json<DiffResult>, StatusCode> {
+    let mut result = DiffResult {
+        changes: vec![], // Empty git changes
+        stats: crate::models::DiffStats { additions: 0, deletions: 0, modifications: 0, unchanged: 0 },
+        similarity: 0.0,
+        entities: vec![], // Structure view logic currently doesn't use the global entity list deeply, can be added if needed
+        article_changes: None,
     };
 
-    // Perform detailed word-level diff
+    let article_changes = align_articles(
+        &payload.old_text,
+        &payload.new_text,
+        payload.options.align_threshold,
+        payload.options.format_text
+    );
+    result.article_changes = Some(article_changes);
+
+    // Calculate basic stats from article changes if needed, or leave 0
+    // (Frontend calculates its own stats or uses what's provided)
+
+    Ok(Json(result))
+}
+
+/// Compare two legal texts (Full Analysis)
+async fn compare(
+    Json(payload): Json<CompareRequest>,
+) -> Result<Json<DiffResult>, StatusCode> {
+    let entities = extract_entities_helper(&payload);
+
+    // 1. Git Diff
     let mut result = compare_texts(&payload.old_text, &payload.new_text, entities);
 
-    // Perform structural article alignment (The "Pro" feature)
+    // 2. Structure Diff
     let article_changes = align_articles(
         &payload.old_text,
         &payload.new_text,
@@ -100,6 +128,8 @@ async fn get_examples() -> impl IntoResponse {
 pub fn create_router() -> Router {
     Router::new()
         .route("/api/compare", post(compare))
+        .route("/api/compare/git", post(compare_git))
+        .route("/api/compare/structure", post(compare_structure))
         .route("/api/parse", post(parse))
         .route("/api/examples", axum::routing::get(get_examples))
         .route("/health", axum::routing::get(health))

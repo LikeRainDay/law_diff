@@ -124,7 +124,7 @@ function GitLineNavigation({ changes, className, language = 'zh' }: { changes: C
   );
 }
 
-// --- Structure List View (Clean & Minimal) ---
+// --- Structure Stripe View (Dense & Visual) ---
 function StructureTreeNavigation({ articleChanges, className, language = 'zh' }: { articleChanges: ArticleChange[], className?: string, language?: 'zh' | 'en' }) {
   const visibleChanges = articleChanges.filter(c => c.type !== 'unchanged');
 
@@ -133,89 +133,81 @@ function StructureTreeNavigation({ articleChanges, className, language = 'zh' }:
     const element = document.getElementById(`article-row-${index}`);
     if (element) {
        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-       // Add highlight class
        element.classList.add('ring-2', 'ring-primary/20');
        setTimeout(() => element.classList.remove('ring-2', 'ring-primary/20'), 2000);
     }
   };
 
-  const t_title = language === 'zh' ? '目录导航' : 'Structure';
-  const t_empty = language === 'zh' ? '没有发现结构性变更' : 'No structural chances';
+  const t_title = language === 'zh' ? '变更导航' : 'Navigation';
+
+  // Group by Parent (Chapter) for alignment with original indices
+  const groupedChanges: { title: string, items: { change: ArticleChange, originalIndex: number }[] }[] = [];
+  let currentGroup: { title: string, items: { change: ArticleChange, originalIndex: number }[] } | null = null;
+
+  articleChanges.forEach((change, originalIndex) => {
+      if (change.type === 'unchanged') return;
+
+      const parents = change.newArticles?.[0]?.parents || change.oldArticle?.parents || [];
+      const title = parents[parents.length - 1] || (language === 'zh' ? "其他" : "Other");
+
+      if (!currentGroup || currentGroup.title !== title) {
+          if (currentGroup) groupedChanges.push(currentGroup);
+          currentGroup = { title, items: [{ change, originalIndex }] };
+      } else {
+          currentGroup.items.push({ change, originalIndex });
+      }
+  });
+  if (currentGroup) groupedChanges.push(currentGroup);
 
   return (
-    <div className={cn('flex flex-col h-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm', className)}>
-      <div className="bg-slate-50/80 px-4 py-3 border-b border-slate-100 flex items-center justify-between backdrop-blur-sm">
+    <div className={cn('flex flex-col h-full bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm', className)}>
+      <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between">
         <h3 className="font-medium text-sm text-slate-700 flex items-center gap-2">
           <Folder className="w-4 h-4 text-slate-400" />
           {t_title}
         </h3>
-        <span className="text-[10px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-sm">
+        <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
             {visibleChanges.length}
         </span>
       </div>
 
-      <div className="overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-50/30">
-         {visibleChanges.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-3">
-               <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-                 <Folder className="w-5 h-5 text-slate-300" />
-               </div>
-               <p className="text-xs">{t_empty}</p>
+      <div className="overflow-y-auto custom-scrollbar p-2 space-y-4">
+         {groupedChanges.length === 0 ? (
+            <div className="py-10 text-center text-xs text-slate-400">
+               {language === 'zh' ? '无结构性变更' : 'No structural changes'}
             </div>
-         ) : visibleChanges.map((change, idx) => {
-           const parents = change.newArticles?.[0]?.parents || change.oldArticle?.parents || [];
-           const title = parents[parents.length - 1] || ""; // Parent Chapter
+         ) : groupedChanges.map((group, gIdx) => (
+             <div key={gIdx} className="space-y-1.5">
+                 {/* Group Title (Tiny) */}
+                 <div className="text-[10px] font-medium text-slate-400 px-1 truncate" title={group.title}>
+                     {group.title}
+                 </div>
 
-           return (
-             <div key={idx} onClick={() => scrollToArticle(idx)}
-                className={cn(
-                 "group relative p-3 bg-white rounded-lg border border-slate-200 shadow-sm cursor-pointer transition-all duration-200",
-                 "hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5",
-                 // Left Status Line
-                 `before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-r-sm`,
-                 change.type === 'added' ? "before:bg-emerald-500" :
-                 change.type === 'deleted' ? "before:bg-rose-500" :
-                 change.type === 'modified' ? "before:bg-amber-500" : "before:bg-indigo-500"
-                )}
-             >
-                {/* Header: Chapter Title */}
-                {title && (
-                   <div className="flex items-center gap-1.5 mb-2 pl-2">
-                      <span className="text-[10px] uppercase tracking-wide font-medium text-slate-400 truncate max-w-[180px]">
-                         {title}
-                      </span>
-                   </div>
-                )}
+                 {/* Visual Stripes for this Group */}
+                 <div className="flex flex-wrap gap-1 px-1">
+                     {group.items.map(({ change, originalIndex }, idx) => {
+                         const type = change.type;
+                         const label = change.newArticles?.[0]?.number || change.oldArticle?.number || "?";
 
-                {/* Main Content */}
-                <div className="flex items-center justify-between pl-2">
-                   <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "font-mono text-sm font-bold text-slate-700 group-hover:text-primary transition-colors",
-                        change.type === 'deleted' && "line-through opacity-70"
-                      )}>
-                         {change.newArticles?.[0]?.number || change.oldArticle?.number}
-                      </span>
-                   </div>
-
-                   {/* Tags */}
-                   <div className="flex gap-1">
-                     {(change.tags || [change.type]).slice(0, 1).map(tag => (
-                       <span key={tag} className={cn(
-                          "text-[10px] px-2 py-0.5 rounded-full font-medium border",
-                          tag === 'added' ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
-                          tag === 'deleted' ? "bg-rose-50 border-rose-100 text-rose-600" :
-                          tag === 'modified' ? "bg-amber-50 border-amber-100 text-amber-600" :
-                          "bg-indigo-50 border-indigo-100 text-indigo-600"
-                       )}>
-                          {getTagLabel(tag, language)}
-                       </span>
-                     ))}
-                   </div>
-                </div>
+                         return (
+                            <button
+                                key={idx}
+                                onClick={() => scrollToArticle(originalIndex)}
+                                className={cn(
+                                    "h-6 min-w-[6px] flex-1 rounded-sm transition-all hover:scale-110 hover:z-10 shadow-sm relative group",
+                                    type === 'added' ? "bg-emerald-400 hover:bg-emerald-500" :
+                                    type === 'deleted' ? "bg-rose-400 hover:bg-rose-500" :
+                                    type === 'modified' ? "bg-amber-400 hover:bg-amber-500" :
+                                    "bg-indigo-400 hover:bg-indigo-500"
+                                )}
+                                title={`${getTagLabel(type, language)}: ${label}`}
+                            >
+                            </button>
+                         );
+                     })}
+                 </div>
              </div>
-           );
-         })}
+         ))}
       </div>
     </div>
   );

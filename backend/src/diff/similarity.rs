@@ -98,6 +98,10 @@ pub fn calculate_composite_similarity(
     tokens1: &HashSet<String>,
     tokens2: &HashSet<String>,
 ) -> SimilarityScore {
+    if text1 == text2 {
+        return SimilarityScore::new(1.0, 1.0, 1.0);
+    }
+
     let char_sim = calculate_char_similarity(text1, text2);
     let jaccard_sim = calculate_jaccard_similarity(tokens1, tokens2);
     let keyword_weight = calculate_legal_keyword_weight(text1, text2);

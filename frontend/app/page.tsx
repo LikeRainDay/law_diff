@@ -39,7 +39,7 @@ export default function Home() {
 
   // Advanced Settings
   const [alignThreshold, setAlignThreshold] = useState(0.6);
-  const [formatText, setFormatText] = useState(true);
+  const [formatText, setFormatText] = useState(false);
   const [showIdentical, setShowIdentical] = useState(true);
 
   // Localization Helper
@@ -101,29 +101,67 @@ export default function Home() {
     if (!oldText && !newText) return;
 
     setLoading(true);
-    // Artificial delay for better UX
     await new Promise(resolve => setTimeout(resolve, 600));
 
     try {
+      // Determine what to fetch based on current view, but default to Git for speed
+      const type = viewMode === 'article-structure' ? 'structure' : 'git';
+
       const result = await compareLegalTextsAsync(oldText, newText, {
         alignThreshold,
         formatText,
-        detectEntities: true
+        detectEntities: true,
+        type: type
       });
-      setDiffResult(result);
 
-      // Auto-switch to structure view if structural changes detected
-      if (result.articleChanges && result.articleChanges.length > 0) {
-        setViewMode('article-structure');
-      } else {
-        setViewMode('git');
-      }
+      setDiffResult(result);
     } catch (error) {
       console.error("Comparison failed:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Lazy load structural data if not present when switching views
+  useEffect(() => {
+    const lazyLoadStructure = async () => {
+        if (viewMode === 'article-structure' && diffResult && !diffResult.articleChanges && !loading) {
+            setLoading(true);
+            try {
+                const result = await compareLegalTextsAsync(oldText, newText, {
+                    alignThreshold,
+                    formatText,
+                    detectEntities: true,
+                    type: 'structure'
+                });
+                setDiffResult(prev => prev ? { ...prev, articleChanges: result.articleChanges } : result);
+            } catch (err) {
+                console.error("Lazy load structure failed:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if ((viewMode === 'git' || viewMode === 'sidebyside') && diffResult && diffResult.changes.length === 0 && !loading) {
+             setLoading(true);
+             try {
+                const result = await compareLegalTextsAsync(oldText, newText, {
+                    alignThreshold,
+                    formatText,
+                    detectEntities: true,
+                    type: 'git'
+                });
+                setDiffResult(prev => prev ? { ...prev, changes: result.changes, stats: result.stats } : result);
+             } catch (err) {
+                console.error("Lazy load git diff failed:", err);
+             } finally {
+                setLoading(false);
+             }
+        }
+    };
+
+    lazyLoadStructure();
+  }, [viewMode, diffResult, oldText, newText, alignThreshold, formatText]);
 
   const clearInputs = () => {
     setOldText('');

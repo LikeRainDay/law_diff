@@ -10,27 +10,27 @@ static CLAUSE_PATTERN: OnceLock<Regex> = OnceLock::new();
 static ITEM_PATTERN: OnceLock<Regex> = OnceLock::new();
 
 fn get_part_pattern() -> &'static Regex {
-    PART_PATTERN.get_or_init(|| Regex::new(r"第([一二三四五六七八九十百\d]+)编\s*(.*)").unwrap())
+    PART_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)编\s*(.*)").unwrap())
 }
 
 fn get_chapter_pattern() -> &'static Regex {
-    CHAPTER_PATTERN.get_or_init(|| Regex::new(r"第([一二三四五六七八九十百\d]+)章\s*(.*)").unwrap())
+    CHAPTER_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)章\s*(.*)").unwrap())
 }
 
 fn get_section_pattern() -> &'static Regex {
-    SECTION_PATTERN.get_or_init(|| Regex::new(r"第([一二三四五六七八九十百\d]+)节\s*(.*)").unwrap())
+    SECTION_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)节\s*(.*)").unwrap())
 }
 
 fn get_article_pattern() -> &'static Regex {
-    ARTICLE_PATTERN.get_or_init(|| Regex::new(r"第([一二三四五六七八九十百\d]+)条\s*(.*)").unwrap())
+    ARTICLE_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)条\s*(.*)").unwrap())
 }
 
 fn get_clause_pattern() -> &'static Regex {
-    CLAUSE_PATTERN.get_or_init(|| Regex::new(r"（([一二三四五六七八九十\d]+)）\s*(.*)").unwrap())
+    CLAUSE_PATTERN.get_or_init(|| Regex::new(r"^[（(]([一二三四五六七八九十\d]+)[)）]\s*(.*)").unwrap())
 }
 
 fn get_item_pattern() -> &'static Regex {
-    ITEM_PATTERN.get_or_init(|| Regex::new(r"(\d+)\.\s*(.+)").unwrap())
+    ITEM_PATTERN.get_or_init(|| Regex::new(r"^(\d+)\.\s*(.+)").unwrap())
 }
 
 /// Parse legal article text into AST structure
@@ -294,8 +294,41 @@ pub fn parse_article(text: &str) -> ArticleNode {
         root.children.push(part);
     }
 
+    prune_empty_nodes(&mut root);
     root
 }
+
+/// Recursively remove structural nodes that have no content and no children.
+/// This is primarily to remove "Table of Contents" entries that are parsed as structural nodes
+/// but contain no actual legal text or articles.
+fn prune_empty_nodes(node: &mut ArticleNode) {
+    // 1. Prune children first (bottom-up)
+    for child in &mut node.children {
+        prune_empty_nodes(child);
+    }
+
+    // 2. Filter out empty children
+    // We only remove Structural Nodes (Part, Chapter, Section).
+    // profound Article/Clause/Item/Preamble usually mean something even if empty (though rare).
+    // TOC entries appear as empty Chapters/Sections.
+    node.children.retain(|child| {
+        let is_structural = matches!(
+            child.node_type,
+            NodeType::Part | NodeType::Chapter | NodeType::Section
+        );
+
+        if is_structural {
+            let has_content = !child.content.trim().is_empty();
+            let has_children = !child.children.is_empty();
+            has_content || has_children
+        } else {
+            true // Keep non-structural nodes (like Preamble, Article)
+        }
+    });
+}
+
+#[cfg(test)]
+mod repro_issue;
 
 #[cfg(test)]
 mod tests {
@@ -371,5 +404,21 @@ mod tests {
         assert_eq!(article.node_type, NodeType::Article);
         assert_eq!(article.number, "一");
         assert!(article.content.contains("【立法目的】"), "Content should contain title");
+    }
+    #[test]
+    fn test_parse_inline_structure_preserved() {
+        // User wants "structure preserved", meaning inline clauses stay inline.
+        let raw = "第四条 应当履行下列义务：（一）义务一；（二）义务二。";
+        // 1. Normalize (should NOT insert newlines for clauses now)
+        let normalized = normalize_legal_text(raw);
+        assert!(!normalized.contains("\n（一）"), "Formatter should NOT force newline for inline clause");
+
+        // 2. Parse (should NOT create Clause nodes for inline text)
+        let ast = parse_article(&normalized);
+        let article = &ast.children[0];
+
+        assert_eq!(article.number, "四");
+        assert_eq!(article.children.len(), 0, "Inline clauses should not become child nodes");
+        assert!(article.content.contains("（一）义务一"), "Content should be preserved inline");
     }
 }

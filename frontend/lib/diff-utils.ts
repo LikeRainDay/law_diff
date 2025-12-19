@@ -30,10 +30,14 @@ export async function compareLegalTextsAsync(
     alignThreshold: number;
     formatText: boolean;
     detectEntities: boolean;
+    type: 'full' | 'git' | 'structure';
   }>
 ): Promise<DiffResult> {
+  const type = options?.type || 'full';
+  const endpoint = type === 'full' ? '/api/compare' : `/api/compare/${type}`;
+
   try {
-    const response = await fetch(BACKEND_API_URL, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,7 +61,7 @@ export async function compareLegalTextsAsync(
     const data = await response.json();
     return transformBackendResponse(data);
   } catch (error) {
-    console.warn('Backend comparison failed, falling back to local processing:', error);
+    console.warn(`Backend comparison (${type}) failed, falling back to local processing:`, error);
     return compareLegalTexts(oldText, newText);
   }
 }
