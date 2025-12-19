@@ -35,7 +35,7 @@ pub fn compare_texts(old_text: &str, new_text: &str, entities: Vec<Entity>) -> D
                     old_line: None,
                     new_line: Some(new_line),
                     old_content: None,
-                    new_content: Some(value.to_string()),
+                    new_content: Some(value.into()),
                     entities: None,
                 });
                 new_line += 1;
@@ -46,7 +46,7 @@ pub fn compare_texts(old_text: &str, new_text: &str, entities: Vec<Entity>) -> D
                     change_type: ChangeType::Delete,
                     old_line: Some(old_line),
                     new_line: None,
-                    old_content: Some(value.to_string()),
+                    old_content: Some(value.into()),
                     new_content: None,
                     entities: None,
                 });
@@ -54,12 +54,13 @@ pub fn compare_texts(old_text: &str, new_text: &str, entities: Vec<Entity>) -> D
                 deletions += 1;
             }
             ChangeTag::Equal => {
+                let arc_val: std::sync::Arc<str> = value.into();
                 changes.push(Change {
                     change_type: ChangeType::Unchanged,
                     old_line: Some(old_line),
                     new_line: Some(new_line),
-                    old_content: Some(value.to_string()),
-                    new_content: Some(value.to_string()),
+                    old_content: Some(arc_val.clone()),
+                    new_content: Some(arc_val),
                     entities: None,
                 });
                 old_line += 1;

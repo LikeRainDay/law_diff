@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Article change type for structural diff
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -20,13 +21,13 @@ pub enum ArticleChangeType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArticleInfo {
-    pub number: String,
-    pub content: String,
-    pub title: Option<String>,
+    pub number: Arc<str>,
+    pub content: Arc<str>,
+    pub title: Option<Arc<str>>,
     pub start_line: usize,
-    pub node_type: NodeType, // NEW
+    pub node_type: NodeType,
     #[serde(default)]
-    pub parents: Vec<String>, // Hierarchy context (e.g. ["第一章 总则"])
+    pub parents: Vec<Arc<str>>, // Hierarchy context (e.g. ["第一章 总则"])
 }
 
 /// Structural change in an article
@@ -64,9 +65,9 @@ pub enum NodeType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArticleNode {
     pub node_type: NodeType,
-    pub number: String,
-    pub title: Option<String>,
-    pub content: String,
+    pub number: Arc<str>,
+    pub title: Option<Arc<str>>,
+    pub content: Arc<str>,
     pub children: Vec<ArticleNode>,
     #[serde(default)]
     pub start_line: usize,
@@ -93,9 +94,9 @@ pub struct Change {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub new_line: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub old_content: Option<String>,
+    pub old_content: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub new_content: Option<String>,
+    pub new_content: Option<Arc<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entities: Option<Vec<Entity>>,
 }
@@ -117,7 +118,7 @@ pub enum EntityType {
 pub struct Entity {
     #[serde(rename = "type")]
     pub entity_type: EntityType,
-    pub value: String,
+    pub value: Arc<str>,
     pub confidence: f32,
     pub position: Position,
 }
@@ -136,6 +137,29 @@ pub struct DiffStats {
     pub deletions: usize,
     pub modifications: usize,
     pub unchanged: usize,
+}
+
+/// Multi-dimensional similarity score
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimilarityScore {
+    pub char_similarity: f32,
+    pub jaccard_similarity: f32,
+    pub containment_similarity: f32,
+    pub keyword_weight: f32,
+    pub composite: f32,
+}
+
+impl SimilarityScore {
+    pub fn new(char_sim: f32, jaccard_sim: f32, containment_sim: f32, keyword_weight: f32) -> Self {
+        let composite = char_sim * 0.3 + jaccard_sim * 0.2 + containment_sim * 0.3 + keyword_weight * 0.2;
+        Self {
+            char_similarity: char_sim,
+            jaccard_similarity: jaccard_sim,
+            containment_similarity: containment_sim,
+            keyword_weight,
+            composite,
+        }
+    }
 }
 
 /// Complete diff result

@@ -57,7 +57,7 @@ impl NEREngine for RegexNER {
         for m in get_date_pattern().find_iter(text) {
             entities.push(Entity {
                 entity_type: EntityType::Date,
-                value: m.as_str().to_string(),
+                value: m.as_str().into(),
                 confidence: 0.85 + (rand::random::<f32>() * 0.05),
                 position: Position {
                     start: m.start(),
@@ -70,7 +70,7 @@ impl NEREngine for RegexNER {
         for m in get_amount_pattern().find_iter(text) {
             entities.push(Entity {
                 entity_type: EntityType::Amount,
-                value: m.as_str().to_string(),
+                value: m.as_str().into(),
                 confidence: 0.88 + (rand::random::<f32>() * 0.05),
                 position: Position {
                     start: m.start(),
@@ -83,7 +83,7 @@ impl NEREngine for RegexNER {
         for m in get_penalty_pattern().find_iter(text) {
             entities.push(Entity {
                 entity_type: EntityType::Penalty,
-                value: m.as_str().to_string(),
+                value: m.as_str().into(),
                 confidence: 0.90 + (rand::random::<f32>() * 0.05),
                 position: Position {
                     start: m.start(),
@@ -96,7 +96,7 @@ impl NEREngine for RegexNER {
         for m in get_registry_pattern().find_iter(text) {
             entities.push(Entity {
                 entity_type: EntityType::Registry,
-                value: m.as_str().to_string(),
+                value: m.as_str().into(),
                 confidence: 0.87 + (rand::random::<f32>() * 0.05),
                 position: Position {
                     start: m.start(),
@@ -109,7 +109,7 @@ impl NEREngine for RegexNER {
         for m in get_scope_pattern().find_iter(text) {
             entities.push(Entity {
                 entity_type: EntityType::Scope,
-                value: m.as_str().to_string(),
+                value: m.as_str().into(),
                 confidence: 0.86 + (rand::random::<f32>() * 0.05),
                 position: Position {
                     start: m.start(),

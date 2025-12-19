@@ -41,9 +41,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
 
     let mut root = ArticleNode {
         node_type: NodeType::Article,
-        number: "root".to_string(),
-        title: Some("Document Root".to_string()),
-        content: String::new(),
+        number: "root".into(),
+        title: Some("Document Root".into()),
+        content: "".into(),
         children: Vec::new(),
         start_line: 0,
     };
@@ -83,9 +83,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 if !structure_started && !preamble_buffer.is_empty() {
                     root.children.push(ArticleNode {
                         node_type: NodeType::Preamble,
-                        number: "0".to_string(),
-                        title: Some("序言/目录".to_string()),
-                        content: preamble_buffer.join("\n"),
+                        number: "0".into(),
+                        title: Some("序言/目录".into()),
+                        content: preamble_buffer.join("\n").into(),
                         children: Vec::new(),
                         start_line: 1,
                     });
@@ -106,9 +106,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
 
                 current_article = Some(ArticleNode {
                     node_type: NodeType::Article,
-                    number: caps.get(1).unwrap().as_str().to_string(),
+                    number: caps.get(1).unwrap().as_str().into(),
                     title: None,
-                    content: after_marker.trim().to_string(),
+                    content: after_marker.trim().into(),
                     children: Vec::new(),
                     start_line: line_idx + 1,
                 });
@@ -147,9 +147,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 if !structure_started && !preamble_buffer.is_empty() {
                     root.children.push(ArticleNode {
                         node_type: NodeType::Preamble,
-                        number: "0".to_string(),
-                        title: Some("序言/目录".to_string()),
-                        content: preamble_buffer.join("\n"),
+                        number: "0".into(),
+                        title: Some("序言/目录".into()),
+                        content: preamble_buffer.join("\n").into(),
                         children: Vec::new(),
                         start_line: 1,
                     });
@@ -157,18 +157,28 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 }
                 structure_started = true;
                 in_toc = false;
+                if let Some(clause) = current_clause.take() {
+                    if let Some(ref mut article) = current_article { article.children.push(clause); }
+                }
                 if let Some(article) = current_article.take() {
                     if let Some(ref mut section) = current_section { section.children.push(article); }
                     else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
                     else { root.children.push(article); }
                 }
-                if let Some(chapter) = current_chapter.take() { root.children.push(chapter); }
+                if let Some(section) = current_section.take() {
+                    if let Some(ref mut chapter) = current_chapter { chapter.children.push(section); }
+                    else { root.children.push(section); }
+                }
+                if let Some(chapter) = current_chapter.take() {
+                    if let Some(ref mut part) = current_part { part.children.push(chapter); }
+                    else { root.children.push(chapter); }
+                }
 
                 current_part = Some(ArticleNode {
                     node_type: NodeType::Part,
-                    number: caps.get(1).unwrap().as_str().to_string(),
-                    title: caps.get(2).map(|m| m.as_str().to_string()),
-                    content: String::new(),
+                    number: caps.get(1).unwrap().as_str().into(),
+                    title: caps.get(2).map(|m| m.as_str().into()),
+                    content: "".into(),
                     children: Vec::new(),
                     start_line: line_idx + 1,
                 });
@@ -186,9 +196,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
                     if !structure_started && !preamble_buffer.is_empty() {
                     root.children.push(ArticleNode {
                         node_type: NodeType::Preamble,
-                        number: "0".to_string(),
-                        title: Some("序言/目录".to_string()),
-                        content: preamble_buffer.join("\n"),
+                        number: "0".into(),
+                        title: Some("序言/目录".into()),
+                        content: preamble_buffer.join("\n").into(),
                         children: Vec::new(),
                         start_line: 1,
                     });
@@ -196,6 +206,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 }
                 structure_started = true;
                 in_toc = false;
+                    if let Some(clause) = current_clause.take() {
+                        if let Some(ref mut article) = current_article { article.children.push(clause); }
+                    }
                     if let Some(article) = current_article.take() {
                         if let Some(ref mut section) = current_section { section.children.push(article); }
                         else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
@@ -203,6 +216,7 @@ pub fn parse_article(text: &str) -> ArticleNode {
                     }
                     if let Some(section) = current_section.take() {
                         if let Some(ref mut chapter) = current_chapter { chapter.children.push(section); }
+                        else { root.children.push(section); }
                     }
                     if let Some(mut chapter) = current_chapter.take() {
                          if let Some(ref mut part) = current_part { part.children.push(chapter); }
@@ -211,9 +225,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
 
                     current_chapter = Some(ArticleNode {
                         node_type: NodeType::Chapter,
-                        number: caps.get(1).unwrap().as_str().to_string(),
-                        title: if after_marker.is_empty() { None } else { Some(after_marker.trim().to_string()) },
-                        content: String::new(),
+                        number: caps.get(1).unwrap().as_str().into(),
+                        title: if after_marker.is_empty() { None } else { Some(after_marker.trim().into()) },
+                        content: "".into(),
                         children: Vec::new(),
                         start_line: line_idx + 1,
                     });
@@ -229,9 +243,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 if !structure_started && !preamble_buffer.is_empty() {
                     root.children.push(ArticleNode {
                         node_type: NodeType::Preamble,
-                        number: "0".to_string(),
-                        title: Some("序言/目录".to_string()),
-                        content: preamble_buffer.join("\n"),
+                        number: "0".into(),
+                        title: Some("序言/目录".into()),
+                        content: preamble_buffer.join("\n").into(),
                         children: Vec::new(),
                         start_line: 1,
                     });
@@ -239,6 +253,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 }
                 structure_started = true;
                 in_toc = false;
+                if let Some(clause) = current_clause.take() {
+                    if let Some(ref mut article) = current_article { article.children.push(clause); }
+                }
                 if let Some(article) = current_article.take() {
                     if let Some(ref mut section) = current_section { section.children.push(article); }
                     else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
@@ -250,9 +267,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
 
                 current_section = Some(ArticleNode {
                     node_type: NodeType::Section,
-                    number: caps.get(1).unwrap().as_str().to_string(),
-                    title: caps.get(2).map(|m| m.as_str().to_string()),
-                    content: String::new(),
+                    number: caps.get(1).unwrap().as_str().into(),
+                    title: caps.get(2).map(|m| m.as_str().into()),
+                    content: "".into(),
                     children: Vec::new(),
                     start_line: line_idx + 1,
                 });
@@ -265,30 +282,30 @@ pub fn parse_article(text: &str) -> ArticleNode {
         if !in_toc {
             // 3. Clause (款)
         if let Some(caps) = get_clause_pattern().captures(trimmed) {
-            if !structure_started && !preamble_buffer.is_empty() {
-                root.children.push(ArticleNode {
-                    node_type: NodeType::Preamble,
-                    number: "0".to_string(),
-                    title: Some("序言/目录".to_string()),
-                    content: preamble_buffer.join("\n"),
-                    children: Vec::new(),
-                    start_line: 1,
-                });
-                preamble_buffer.clear();
-            }
-            structure_started = true;
-            in_toc = false;
             let full_marker = caps.get(0).unwrap().as_str();
             let after_marker = trimmed.get(full_marker.len()..).unwrap_or("");
             if !after_marker.starts_with("规定") && !after_marker.starts_with("之") {
+                if !structure_started && !preamble_buffer.is_empty() {
+                    root.children.push(ArticleNode {
+                        node_type: NodeType::Preamble,
+                        number: "0".into(),
+                        title: Some("序言/目录".into()),
+                        content: preamble_buffer.join("\n").into(),
+                        children: Vec::new(),
+                        start_line: 1,
+                    });
+                    preamble_buffer.clear();
+                }
+                structure_started = true;
+                in_toc = false;
                 if let Some(clause) = current_clause.take() {
                     if let Some(ref mut article) = current_article { article.children.push(clause); }
                 }
                 current_clause = Some(ArticleNode {
                     node_type: NodeType::Clause,
-                    number: caps.get(1).unwrap().as_str().to_string(),
+                    number: caps.get(1).unwrap().as_str().into(),
                     title: None,
-                    content: format!("{}{}", full_marker, after_marker.trim()),
+                    content: format!("{}{}", full_marker, after_marker.trim()).into(),
                     children: Vec::new(),
                     start_line: line_idx + 1,
                 });
@@ -303,9 +320,9 @@ pub fn parse_article(text: &str) -> ArticleNode {
             let after_marker = trimmed.get(full_marker.len()..).unwrap_or("");
             let item = ArticleNode {
                 node_type: NodeType::Item,
-                number: caps.get(1).unwrap().as_str().to_string(),
+                number: caps.get(1).unwrap().as_str().into(),
                 title: None,
-                content: format!("{}{}", full_marker, after_marker.trim()),
+                content: format!("{}{}", full_marker, after_marker.trim()).into(),
                 children: Vec::new(),
                 start_line: line_idx + 1,
             };
@@ -314,19 +331,27 @@ pub fn parse_article(text: &str) -> ArticleNode {
             continue;
         } }
 
-        // 5. Fallback: Preamble or Content continuation
+        // 5. Fallback: Content continuation
         if !structure_started {
             preamble_buffer.push(trimmed.to_string());
         } else {
-             if let Some(ref mut clause) = current_clause {
-                clause.content.push('\n');
-                clause.content.push_str(trimmed);
+            // To append to Arc<str>, we must convert back to String, append, then convert again.
+            // This is slightly inefficient but only happens for continuation lines.
+            if let Some(ref mut clause) = current_clause {
+                let mut content = clause.content.to_string();
+                content.push('\n');
+                content.push_str(trimmed);
+                clause.content = content.into();
             } else if let Some(ref mut article) = current_article {
-                article.content.push('\n');
-                article.content.push_str(trimmed);
+                let mut content = article.content.to_string();
+                content.push('\n');
+                content.push_str(trimmed);
+                article.content = content.into();
             } else if let Some(ref mut chapter) = current_chapter {
-                chapter.content.push('\n');
-                chapter.content.push_str(trimmed);
+                let mut content = chapter.content.to_string();
+                content.push('\n');
+                content.push_str(trimmed);
+                chapter.content = content.into();
             }
         }
     }

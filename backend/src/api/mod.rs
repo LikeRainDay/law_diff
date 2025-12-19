@@ -40,8 +40,11 @@ fn extract_entities_helper(payload: &CompareRequest) -> Vec<crate::models::Entit
 async fn compare_git(
     Json(payload): Json<CompareRequest>,
 ) -> Result<Json<DiffResult>, StatusCode> {
-    let entities = extract_entities_helper(&payload);
-    let result = compare_texts(&payload.old_text, &payload.new_text, entities);
+    let result = tokio::task::spawn_blocking(move || {
+        let entities = extract_entities_helper(&payload);
+        compare_texts(&payload.old_text, &payload.new_text, entities)
+    }).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     Ok(Json(result))
 }
 
@@ -49,20 +52,22 @@ async fn compare_git(
 async fn compare_structure(
     Json(payload): Json<CompareRequest>,
 ) -> Result<Json<DiffResult>, StatusCode> {
+    let article_changes = tokio::task::spawn_blocking(move || {
+        align_articles(
+            &payload.old_text,
+            &payload.new_text,
+            payload.options.align_threshold,
+            payload.options.format_text
+        )
+    }).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     let mut result = DiffResult {
         changes: vec![], // Empty git changes
         stats: crate::models::DiffStats { additions: 0, deletions: 0, modifications: 0, unchanged: 0 },
         similarity: 0.0,
-        entities: vec![], // Structure view logic currently doesn't use the global entity list deeply, can be added if needed
+        entities: vec![],
         article_changes: None,
     };
-
-    let article_changes = align_articles(
-        &payload.old_text,
-        &payload.new_text,
-        payload.options.align_threshold,
-        payload.options.format_text
-    );
 
     // Calculate overall similarity as average
     let total_sim: f32 = article_changes.iter().map(|c| c.similarity.unwrap_or(0.0)).sum();
@@ -78,19 +83,22 @@ async fn compare_structure(
 async fn compare(
     Json(payload): Json<CompareRequest>,
 ) -> Result<Json<DiffResult>, StatusCode> {
-    let entities = extract_entities_helper(&payload);
+    let result = tokio::task::spawn_blocking(move || {
+        let entities = extract_entities_helper(&payload);
 
-    // 1. Git Diff
-    let mut result = compare_texts(&payload.old_text, &payload.new_text, entities);
+        // 1. Git Diff
+        let mut result = compare_texts(&payload.old_text, &payload.new_text, entities);
 
-    // 2. Structure Diff
-    let article_changes = align_articles(
-        &payload.old_text,
-        &payload.new_text,
-        payload.options.align_threshold,
-        payload.options.format_text
-    );
-    result.article_changes = Some(article_changes);
+        // 2. Structure Diff
+        let article_changes = align_articles(
+            &payload.old_text,
+            &payload.new_text,
+            payload.options.align_threshold,
+            payload.options.format_text
+        );
+        result.article_changes = Some(article_changes);
+        result
+    }).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(result))
 }

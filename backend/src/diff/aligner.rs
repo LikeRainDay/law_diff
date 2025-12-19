@@ -1,10 +1,11 @@
 use crate::ast::parse_article;
-use crate::diff::similarity::{calculate_composite_similarity, SimilarityScore};
-use crate::models::{ArticleChange, ArticleChangeType, ArticleInfo, ArticleNode, NodeType};
+use crate::diff::similarity::calculate_composite_similarity;
+use crate::models::{ArticleChange, ArticleChangeType, ArticleInfo, ArticleNode, NodeType, SimilarityScore};
 use crate::nlp::tokenizer::tokenize_to_set;
 use crate::nlp::formatter::normalize_legal_text;
 use rayon::prelude::*;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 // Base thresholds - will be adjusted by user input
 const EXACT_MATCH_THRESHOLD: f32 = 1.0;
@@ -176,11 +177,11 @@ fn build_similarity_matrix(
     new_articles: &[ArticleInfo],
 ) -> Vec<Vec<SimilarityScore>> {
     // 1. Pre-tokenize everything once
-    let old_tokens: Vec<HashSet<String>> = old_articles.par_iter()
+    let old_tokens: Vec<HashSet<std::sync::Arc<str>>> = old_articles.par_iter()
         .map(|art| tokenize_to_set(&art.content))
         .collect();
 
-    let new_tokens: Vec<HashSet<String>> = new_articles.par_iter()
+    let new_tokens: Vec<HashSet<std::sync::Arc<str>>> = new_articles.par_iter()
         .map(|art| tokenize_to_set(&art.content))
         .collect();
 
@@ -198,12 +199,20 @@ fn build_similarity_matrix(
                 tokens_b,
             );
 
-            // Context bonus: if chapters/sections match, it's more likely the same article.
-            // IMPORTANT: Bonus is for alignment phase, but we MUST NOT fake 100% similarity.
-            // If it's not identical (score < 1.0), the bonus should cap at 0.99 for alignment.
-            if !old_art.parents.is_empty() && old_art.parents == new_art.parents {
-                if score_wrapper.composite < 0.999 {
-                    score_wrapper.composite = (score_wrapper.composite + 0.15).min(0.99);
+            // Boost score if hierarchy context matches
+            if !old_art.parents.is_empty() && !new_art.parents.is_empty() {
+                let p1 = &old_art.parents;
+                let p2 = &new_art.parents;
+                let mut matches = 0;
+                for parent1 in p1 {
+                    for parent2 in p2 {
+                        if parent1 == parent2 {
+                            matches += 1;
+                        }
+                    }
+                }
+                if matches > 0 {
+                    score_wrapper.composite = (score_wrapper.composite + (0.05 * matches as f32)).min(0.99);
                 }
             }
 
@@ -223,7 +232,7 @@ fn find_number_matches(
     changes: &mut Vec<ArticleChange>,
 ) {
     for (old_idx, old_art) in old_articles.iter().enumerate() {
-        if used_old[old_idx] || old_art.number == "root" || old_art.number == "0" {
+        if used_old[old_idx] || old_art.number.as_ref() == "root" || old_art.number.as_ref() == "0" {
             continue;
         }
 
@@ -605,17 +614,17 @@ fn flatten_articles(node: &ArticleNode) -> Vec<ArticleInfo> {
     articles
 }
 
-fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, parent_stack: &[String]) {
+fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, parent_stack: &[Arc<str>]) {
     // If this node is an article or preamble, add it to the list
     if matches!(node.node_type, NodeType::Article | NodeType::Preamble) {
         // Skip technical root node
-        if node.number != "root" {
+        if node.number.as_ref() != "root" {
             list.push(ArticleInfo {
                 number: node.number.clone(),
-                content: get_all_content(node),
+                content: get_all_content(node).into(),
                 title: node.title.clone(),
                 start_line: node.start_line,
-                node_type: node.node_type.clone(), // Set the node type
+                node_type: node.node_type.clone(),
                 parents: parent_stack.to_vec(),
             });
         }
@@ -625,8 +634,8 @@ fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, p
     let mut current_stack = parent_stack.to_vec();
     match node.node_type {
         NodeType::Part | NodeType::Chapter | NodeType::Section => {
-            let label = if let Some(title) = &node.title {
-                format!("{} {}", node.number, title)
+            let label: Arc<str> = if let Some(title) = &node.title {
+                format!("{} {}", node.number, title).into()
             } else {
                 node.number.clone()
             };
@@ -643,7 +652,7 @@ fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, p
 
 /// Helper to gather content from a node and all its children (clauses, items)
 fn get_all_content(node: &ArticleNode) -> String {
-    let mut result = node.content.clone();
+    let mut result = node.content.to_string();
 
     // For articles, we want to maintain some separation if content exists
     for child in &node.children {
@@ -652,9 +661,6 @@ fn get_all_content(node: &ArticleNode) -> String {
             if !result.is_empty() && !result.ends_with('\n') {
                 result.push('\n');
             }
-            // Add a small indent or markers for clauses/items if they aren't already there?
-            // Actually, the parser already includes the (一) or 1. markers in child.content if applicable.
-            // But we might need standard indentation for better structure view.
             if child.node_type == NodeType::Clause || child.node_type == NodeType::Item {
                 // If it doesn't already look like it has indentation, add it
                 if !child_content.starts_with(' ') && !child_content.starts_with('\u{3000}') {

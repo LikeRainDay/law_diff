@@ -69,7 +69,7 @@ impl NEREngine for BertNER {
 
                 entities.push(Entity {
                     entity_type,
-                    value: token.word.clone(),
+                    value: token.word.clone().into(),
                     confidence: token.score,
                     position: Position {
                         start: token.offset.begin,

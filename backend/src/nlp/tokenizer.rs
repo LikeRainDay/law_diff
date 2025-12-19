@@ -19,13 +19,13 @@ pub fn tokenize(text: &str) -> Vec<String> {
 
 /// Tokenize text into a HashSet for Jaccard similarity calculation
 /// Filters out single-character tokens to reduce noise
-pub fn tokenize_to_set(text: &str) -> std::collections::HashSet<String> {
+pub fn tokenize_to_set(text: &str) -> std::collections::HashSet<Arc<str>> {
     use std::collections::HashSet;
     let jieba = get_jieba();
     jieba.cut(text, false)
         .into_iter()
-        .filter(|w| w.len() > 1) // Filter out single characters
-        .map(|w| w.to_string())
+        .filter(|w| w.chars().count() > 1) // Filter out single characters (properly for unicode)
+        .map(|w| Arc::from(w))
         .collect()
 }
 
