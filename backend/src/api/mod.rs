@@ -81,10 +81,25 @@ async fn health() -> impl IntoResponse {
     }))
 }
 
+/// Get example texts
+async fn get_examples() -> impl IntoResponse {
+    let origin = std::fs::read_to_string("examples/origin.txt")
+        .unwrap_or_else(|_| "Error loading origin.txt".to_string());
+
+    let now = std::fs::read_to_string("examples/now.txt")
+        .unwrap_or_else(|_| "Error loading now.txt".to_string());
+
+    Json(serde_json::json!({
+        "old_text": origin,
+        "new_text": now
+    }))
+}
+
 /// Create API router
 pub fn create_router() -> Router {
     Router::new()
         .route("/api/compare", post(compare))
         .route("/api/parse", post(parse))
+        .route("/api/examples", axum::routing::get(get_examples))
         .route("/health", axum::routing::get(health))
 }

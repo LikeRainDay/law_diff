@@ -29,24 +29,11 @@ import { ComparisonSettings } from '@/components/diff/ComparisonSettings';
 import { cn } from '@/lib/utils';
 
 // Examples
-const EXAMPLE_OLD = `第一条 为了加强网络安全管理，保障网络安全，制定本办法。
-第二条 网络运营者应当履行下列安全保护义务：
-（一）制定内部安全管理制度和操作规程；
-（二）采取防范计算机病毒和网络攻击的技术措施；
-（三）监测、记录网络运行状态、网络安全事件的技术措施，并按照规定留存相关的网络日志不少于六个月。
-第三条 违反本办法规定的，由有关主管部门责令改正，给予警告；拒不改正或者导致危害网络安全等后果的，处一万元以上十万元以下罚款。`;
-
-const EXAMPLE_NEW = `第一条 为了加强网络安全管理，保障网络安全，维护国家安全和社会公共利益，根据《中华人民共和国网络安全法》、《中华人民共和国数据安全法》，制定本办法。
-第二条 网络运营者应当履行下列网络安全保护义务，建立网络安全和数据安全保护制度：
-（一）制定内部安全管理制度和操作规程，确定网络安全负责人；
-（二）采取防范计算机病毒和网络攻击、网络侵入等危害网络安全行为的技术措施；
-（三）监测、记录网络运行状态、网络安全事件的技术措施，并按照规定留存相关的网络日志不少于十二个月。
-第三条 实行数据分类分级保护制度。网络运营者应当按照网络安全等级保护制度的要求，履行下列安全保护义务。
-第四条 违反本办法规定的，由有关主管部门责令改正，给予警告；拒不改正或者导致危害网络安全等后果的，处五万元以上二十万元以下罚款；情节严重的，吊销许可证。`;
+// removed hardcoded examples
 
 export default function Home() {
-  const [oldText, setOldText] = useState(EXAMPLE_OLD);
-  const [newText, setNewText] = useState(EXAMPLE_NEW);
+  const [oldText, setOldText] = useState('');
+  const [newText, setNewText] = useState('');
   const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('git');
@@ -56,10 +43,10 @@ export default function Home() {
   const [formatText, setFormatText] = useState(true);
   const [showIdentical, setShowIdentical] = useState(true);
 
-  // Initial comparison on mount
-  useEffect(() => {
-    handleCompare();
-  }, []); // Run once on mount
+  // Initial comparison on mount - SKIP for now, let user choose
+  // useEffect(() => {
+  //   handleCompare();
+  // }, []);
 
   const handleCompare = async () => {
     if (!oldText && !newText) return;
@@ -95,9 +82,25 @@ export default function Home() {
     setDiffResult(null);
   };
 
-  const useExample = () => {
-    setOldText(EXAMPLE_OLD);
-    setNewText(EXAMPLE_NEW);
+  const useExample = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/examples');
+      if (!response.ok) throw new Error('Failed to fetch examples');
+
+      const data = await response.json();
+      setOldText(data.old_text);
+      setNewText(data.new_text);
+
+      // Auto trigger comparison after loading examples
+      // We need to use the data directly since state update is async
+      // Better to just let user click compare or useEffect but let's just load data for now
+    } catch (error) {
+      console.error("Failed to load examples:", error);
+      alert("无法加载示例数据，请确保后端服务正常运行。");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -129,8 +132,9 @@ export default function Home() {
              <Button variant="outline" onClick={clearInputs} className="gap-2">
                <RotateCcw className="w-4 h-4" /> Reset
              </Button>
-             <Button variant="outline" onClick={useExample} className="gap-2">
-                 Example
+             <Button variant="outline" onClick={useExample} className="gap-2" disabled={loading}>
+                 {loading ? <Zap className="w-4 h-4 animate-spin" /> : <GitCommit className="w-4 h-4" />}
+                 Load Example
              </Button>
           </div>
         </header>

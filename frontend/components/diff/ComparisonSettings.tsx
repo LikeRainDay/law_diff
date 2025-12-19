@@ -35,15 +35,15 @@ export function ComparisonSettings({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 border-slate-700 bg-slate-800/50 text-slate-300 hover:bg-slate-800 hover:text-white">
+        <Button variant="outline" size="sm" className="gap-2 shadow-sm transition-colors hover:bg-muted">
           <Settings2 className="h-4 w-4" />
           <span>对比设置</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="border-l border-slate-800 bg-slate-950 text-slate-200">
+      <SheetContent className="sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-slate-100">高级对比设置</SheetTitle>
-          <SheetDescription className="text-slate-400">
+          <SheetTitle>高级对比设置</SheetTitle>
+          <SheetDescription>
             调整算法参数以优化法律文本的结构化对比效果。
           </SheetDescription>
         </SheetHeader>
@@ -52,11 +52,11 @@ export function ComparisonSettings({
           {/* Alignment Threshold */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-base font-medium text-slate-200 flex items-center gap-2">
-                <AlignLeft className="h-4 w-4 text-cyan-400" />
+              <Label className="text-base font-medium flex items-center gap-2">
+                <AlignLeft className="h-4 w-4 text-primary" />
                 对齐敏感度
               </Label>
-              <span className="text-sm text-cyan-400 font-mono">{(threshold * 100).toFixed(0)}%</span>
+              <span className="text-sm font-mono font-medium text-muted-foreground">{(threshold * 100).toFixed(0)}%</span>
             </div>
             <Slider
               value={[threshold]}
@@ -65,41 +65,39 @@ export function ComparisonSettings({
               onValueChange={(vals) => onThresholdChange(vals[0])}
               className="py-4"
             />
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               控制判定两个条款为"修改"还是"不同"的相似度阈值。值越高，算法越倾向于认为它们是不同的条款（拆分/新增）。
             </p>
           </div>
 
           {/* Text Formatting */}
-          <div className="flex items-center justify-between space-x-4 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <div className="flex items-center justify-between space-x-4 rounded-lg border bg-muted/30 p-4">
             <div className="space-y-1">
-              <Label className="text-base text-slate-200 flex items-center gap-2">
-                <FileType className="h-4 w-4 text-blue-400" />
+              <Label className="text-base flex items-center gap-2">
+                <FileType className="h-4 w-4 text-blue-500" />
                 智能格式化
               </Label>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 预处理文本，确保每一条/款都在单独一行，提升对比准确度。
               </p>
             </div>
             <Switch
               checked={formatText}
               onCheckedChange={onFormatTextChange}
-              className="data-[state=checked]:bg-blue-500"
             />
           </div>
 
           {/* Show Identical */}
-          <div className="flex items-center justify-between space-x-4 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <div className="flex items-center justify-between space-x-4 rounded-lg border bg-muted/30 p-4">
             <div className="space-y-1">
-              <Label className="text-base text-slate-200">显示相同条款</Label>
-              <p className="text-xs text-slate-500">
+              <Label className="text-base">显示相同条款</Label>
+              <p className="text-xs text-muted-foreground">
                 在对比视图中包含未变更的条款。关闭以专注于差异。
               </p>
             </div>
             <Switch
               checked={showIdentical}
               onCheckedChange={onShowIdenticalChange}
-              className="data-[state=checked]:bg-cyan-500"
             />
           </div>
         </div>
