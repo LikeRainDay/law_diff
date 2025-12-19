@@ -1,20 +1,62 @@
-# 法条对比
+# Law Compare (法条比对)
 
-> 我需要实现法条对比(服务于同法 不同的版本 查看其中的差异内容)
-> 竞品的效果: http://m.fadada.com/article/Basics-020737
-> 我期望可以直观的看到新旧法的差异和变迁
+Law Compare is a specialized tool for visualizing differences between legal text versions. It provides an intuitive interface to compare old and new versions of laws, highlighting changes in a way that is easy to understand for legal professionals.
 
-# 技术要求
-1. 前端使用next
-2. 后端使用rust 进行封装比对逻辑
+## Key Features
 
-# 展示要求
-1. 要有两种模式 1. git的对比模式 2. 左右对比模式
-2. 左右对比模式要 抽取到差异点 进行具有猫点的移动效果
+- **Side-by-Side Comparison**: View old and new texts side-by-side with synchronized scrolling.
+- **Git-style Diff**: View changes in a traditional Git diff format for quick scan.
+- **Smart Alignment**: Automatically aligns articles and clauses, handling insertions and deletions gracefully.
+- **Entity Recognition**: Highlights key legal entities like dates, amounts, and penalties.
+- **Structure Analysis**: Parses legal texts into structured data (Chapters, Articles, Items) for better context.
 
-# 后端底层要求
-1. 使用nlp 工具进行切词,并且支持 词的管理
-2. 使用rust-bert 进行命名实体的 识别,帮助可以识别出特定的实体和特定的含义. 比如 差异点包含 对应法条的使用范围年限变更, 登记变更等等
-3. 需要similar库进行diff对比.
-4. 期望所有原始法条数据,遍章节条款项 等都使用AST的方式进行管理,更加搞笑
-5. 后端接口要对前端友好并且满足要求
+## Project Structure
+
+The project consists of two main parts:
+
+- **Frontend (`frontend/`)**: A Next.js 14 application providing the user interface. It handles text input, visualization of diffs, and interaction logic.
+- **Backend (`backend/`)**: A Rust (Axum) server that performs the heavy lifting. It handles text segmentation (NLP), efficient diff calculation, entity recognition (NER), and AST parsing.
+
+## Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Rust](https://www.rust-lang.org/) (latest stable)
+
+### 1. Start the Backend
+
+```bash
+cd backend
+# Run in release mode for best performance
+cargo run --release
+```
+The backend server will start at `http://127.0.0.1:8000`.
+
+### 2. Start the Frontend
+
+```bash
+cd frontend
+# Install dependencies
+npm install
+# Start development server
+npm run dev
+```
+Open your browser and navigate to `http://localhost:3000`.
+
+## Deployment
+
+### Backend
+The backend compiles to a single binary.
+1. Build: `cargo build --release`
+2. Run: `./target/release/law-compare-backend`
+
+### Frontend
+The frontend can be deployed to Vercel or any Node.js environment.
+1. Build: `npm run build`
+2. Start: `npm start`
+
+## Documentation
+
+- [Frontend Documentation](frontend/README.md): UI components, state logic, and visualization details.
+- [Backend Documentation](backend/README.md): Algorithm details, API endpoints, and core comparison logic.

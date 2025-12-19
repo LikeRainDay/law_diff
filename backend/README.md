@@ -1,132 +1,51 @@
 # Law Compare Backend (Rust)
 
-高性能法律条文对比后端服务，使用 Rust 实现。
+高性能法律条文对比后端服务，使用 Rust 实现。本服务专注于提供精确、快速的中文法律文本比对和实体识别功能。
 
 ## 功能特性
 
-### ✅ 已实现
+- **高效 Diff 算法**: 使用 `similar` crate 进行词级对比。
+- **中文分词**: 基于 `jieba-rs` 的中文分词引擎。
+- **AST 解析**: 结构化解析法律条文（章节条款项）。
+- **实体识别 (NER)**: 识别日期、金额、处罚等关键法律信息。
 
-- **高效 Diff 算法**: 使用 `similar` crate 进行词级对比
-- **中文分词**: 基于 `jieba-rs` 的中文分词引擎
-- **可配置 NER 引擎**: 支持三种模式
-  - **Regex 模式** (默认): 快速轻量，85-90% 准确率
-  - **BERT 模式**: 高精度 95%+，需要模型文件
-  - **Hybrid 模式**: 智能混合，平衡速度和准确率
-- **实体识别类型**:
-  - 日期/期限
-  - 金额
-  - 处罚措施
-  - 登记事项
-  - 适用范围
-- **AST 解析**: 结构化解析法律条文（章节条款项）
-- **REST API**: Axum 框架提供高性能 HTTP 接口
-- **自定义词典**: 支持法律专业术语管理
+## 核心逻辑与算法 (Core Logic & Algorithms)
 
-## NER 模式选择
+### 1. 为什么选择这些算法？ (Why these algorithms?)
 
-### 快速对比
+#### 词级 Diff (Word-level Diff)
+传统的 Diff 算法（如 Git 默认的）通常基于**行 (Line)**。对于法律文本，通过简单的换行符分割会导致对比粒度过粗，无法精确展示"某条款中修改了几个字"的细节。
+另一方面，基于**字符 (Character)** 的 Diff 虽然精确，但生成的差异过于琐碎，难以阅读（例如 "Apple" -> "Apply" 可能会显示为 "Appl~~e~~**y**"）。
+**解决方案**: 我们使用 **中文分词 (Jieba)** + **Myers Diff 算法**。
+- **Jieba**: 将中文句子切分为有意义的词汇（Token）。
+- **Similar**: 在词汇序列上运行 Myers 算法，既保证了语义的连贯性，又提供了足够的精确度。
 
-| 模式 | 准确率 | 速度 | 内存 | 依赖 |
-|------|--------|------|------|------|
-| **Regex** | 85-90% | < 1ms | < 10MB | 无 |
-| **BERT** | 95%+ | 50-200ms | 300-500MB | 模型文件 |
-| **Hybrid** | 90-95% | 1-50ms | 300-500MB | 模型文件 |
+#### Myers Diff 算法
+Myers 算法是一种寻找两个序列之间最短编辑脚本（Shortest Edit Script, SES）的经典算法。它的时间复杂度为 `O(ND)`，其中 `N` 是序列长度，`D` 是差异数量。对于法律文本这种大部分内容相同、仅有少量修改的场景，效率极高。
 
-### 使用建议
+### 2. 处理流程 (Processing Pipeline)
 
-- **开发/测试**: 使用 Regex（默认）
-- **生产（通用）**: 使用 Regex
-- **生产（高精度）**: 使用 Hybrid
-- **研究/分析**: 使用 BERT
+当后端接收到对比请求时，数据流经以下步骤：
 
-详见 [NER_USAGE_GUIDE.md](./NER_USAGE_GUIDE.md)
+1.  **预处理 (Preprocessing)**:
+    -   规范化文本（去除多余空白）。
+    -   **分词**: 调用 `jieba-rs` 对文本进行切词，生成 Token 序列。
 
-## 技术栈
+2.  **Diff 计算 (Diff Calculation)** (`src/diff/mod.rs`):
+    -   使用 `similar::TextDiff` 对比两个 Token 序列。
+    -   生成原始的 Change 列表 (Insert, Delete, Equal)。
+    -   **合并逻辑**: 也就是 `merge_adjacent_changes` 函数。我们会自动检测相邻的 "删除" 和 "新增"，如果它们位置紧邻，则将其合并为 "修改 (Modify)" 操作。这对于前端展示非常重要，因为它能告诉用户"这一段被改成了那一段"，而不是"删了这一段，又加了那一段"。
 
-- **Web 框架**: Axum 0.7
-- **异步运行时**: Tokio
-- **中文 NLP**: jieba-rs 0.6
-- **Diff 算法**: similar 2.4
-- **序列化**: serde + serde_json
-- **日志**: tracing + tracing-subscriber
+3.  **实体识别 (NER)** (`src/nlp/ner.rs`):
+    -   并行运行 NER 引擎（Regex 或 BERT）。
+    -   识别文本中的关键实体（如 `2023年5月1日`，`5000元`）。
+    -   这些实体信息会被附带在 Diff 结果中，前端可用于高亮显示。
 
-## API 端点
+4.  **结构化对齐 (Structural Alignment)** (可选):
+    -   如果请求包含结构化分析，系统会先解析 AST（章节条款项）。
+    -   然后基于 AST 的层级结构进行对比，而不是纯文本对比。这能处理"整条移动"或"整章删除"的复杂情况。
 
-### POST /api/compare
-对比两个法律文本
-
-**请求体**:
-```json
-{
-  "old_text": "第一条 ...",
-  "new_text": "第一条 ...",
-  "options": {
-    "detect_entities": true,
-    "granularity": "word"
-  }
-}
-```
-
-**响应**:
-```json
-{
-  "similarity": 0.92,
-  "changes": [...],
-  "entities": [...],
-  "stats": {
-    "additions": 10,
-    "deletions": 5,
-    "modifications": 3,
-    "unchanged": 100
-  }
-}
-```
-
-### POST /api/parse
-解析法律条文为 AST 结构
-
-**请求体**: 纯文本法律条文
-
-**响应**: AST JSON 结构
-
-### GET /health
-健康检查
-
-## 快速开始
-
-### 构建
-
-**默认构建（Regex NER）**:
-```bash
-cd backend
-cargo build --release
-```
-
-**启用 BERT NER**:
-```bash
-# 1. 下载 BERT 模型
-./scripts/download_bert_model.sh
-
-# 2. 编译启用 BERT 特性
-cargo build --release --features bert
-
-# 3. 设置环境变量
-export BERT_MODEL_PATH=./models/chinese-ner
-```
-
-### 运行
-
-```bash
-cargo run --release
-```
-
-服务器将在 `http://127.0.0.1:8000` 启动
-
-### 测试
-
-```bash
-cargo test
-```
+> *[Placeholder: Screenshot or Diagram showing the data pipeline: Request -> Tokenizer -> Myers Diff -> Merge Logic -> Response]*
 
 ## 项目结构
 
@@ -134,103 +53,50 @@ cargo test
 backend/
 ├── src/
 │   ├── main.rs          # 服务器入口点
-│   ├── models/          # 数据模型
-│   │   └── mod.rs
-│   ├── api/             # REST API 端点
-│   │   └── mod.rs
-│   ├── diff/            # Diff 算法
-│   │   └── mod.rs
-│   ├── nlp/             # NLP 处理
-│   │   ├── mod.rs
-│   │   ├── tokenizer.rs # 中文分词
-│   │   └── ner.rs       # 实体识别
-│   └── ast/             # AST 解析
-│       └── mod.rs
-└── Cargo.toml
+│   ├── models/          # 数据结构定义 (Change, DiffResult, etc.)
+│   ├── api/             # REST API 路由处理
+│   ├── diff/            # 核心比对算法与结果合并逻辑
+│   ├── nlp/             # 自然语言处理 (分词, NER)
+│   └── ast/             # 法律文本 AST 解析器
+└── Cargo.toml           # 依赖管理
 ```
 
-## 算法详解
+## API 接口
 
-### 1. Diff 算法 (similar crate)
+### POST `/api/compare`
+最核心的接口。
 
-使用 Myers diff 算法进行高效文本对比：
-
-```rust
-let diff = TextDiff::from_words(old_text, new_text);
-let similarity = diff.ratio(); // 相似度 0.0-1.0
+**请求 (Request):**
+```json
+{
+  "old_text": "第一条 为了规范...",
+  "new_text": "第一条 为了更好地规范...",
+  "options": {
+    "type": "git" // 或 "structure"
+  }
+}
 ```
 
-特点：
-- O(ND) 时间复杂度
-- 词级对比更适合中文
-- 自动合并相邻的增删为修改
-
-### 2. 中文分词 (jieba-rs)
-
-基于 HMM 和 Viterbi 算法的中文分词：
-
-```rust
-let tokens = jieba.cut(text, false);
+**响应 (Response):**
+```json
+{
+  "similarity": 0.95,
+  "changes": [
+    { "type": "equal", "content": "第一条 为了" },
+    { "type": "add", "content": "更好地" },
+    { "type": "equal", "content": "规范..." }
+  ]
+}
 ```
 
-特点：
-- 支持自定义词典
-- 法律专业术语预置
-- 高性能（纯 Rust 实现）
+## 部署与运行
 
-### 3. NER 实体识别
-
-当前使用正则表达式进行模式匹配：
-
-```rust
-// 日期模式
-r"(\d{4}年\d{1,2}月\d{1,2}日|\d+个月|\d+年)"
-
-// 金额模式
-r"([一二三四五六七八九十百千万亿\d]+元)"
-
-// 处罚模式
-r"(处罚|罚款|吊销|拘留|监禁|警告)"
-```
-
-**未来规划**: 集成 rust-bert 进行深度学习 NER
-
-### 4. AST 解析
-
-递归下降解析器，识别法律文档层级结构：
-
-```
-文档根
-└── 章 (Chapter)
-    └── 节 (Section)
-        └── 条 (Article)
-            └── 款 (Clause)
-                └── 项 (Item)
-```
+1.  **构建**: `cargo build --release`
+2.  **运行**: `cargo run --release`
+3.  **环境要求**: Linux/macOS/Windows, Rust 1.70+
 
 ## 性能优化
 
-- **编译优化**: Release 模式启用 LTO 和最高优化级别
-- **并发处理**: Tokio 异步运行时
-- **内存效率**: 零拷贝字符串处理
-- **缓存**: Jieba 分词器使用全局单例
-
-## CORS 配置
-
-后端默认允许所有来源的跨域请求，适合开发环境。生产环境请配置具体的允许来源：
-
-```rust
-let cors = CorsLayer::new()
-    .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
-    .allow_methods([Method::GET, Method::POST])
-    .allow_headers([header::CONTENT_TYPE]);
-```
-
-## 环境要求
-
-- Rust 1.70+
-- Cargo
-
-## 许可证
-
-MIT
+- **零拷贝**: 尽量使用 Rust 的引用和切片，减少字符串复制。
+- **Lazy Initialization**: Jieba 分词实例和 NER 模型全局只初始化一次。
+- **Async/Await**: 基于 Tokio 的全异步处理，支持高并发请求。

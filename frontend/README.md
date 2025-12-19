@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend Documentation (Next.js)
 
-## Getting Started
+The frontend of Law Compare is a modern web application built with Next.js 14, designed to provide a fluid and responsive interface for comparing legal texts.
 
-First, run the development server:
+## Project Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+frontend/
+├── app/
+│   ├── page.tsx           # Main application logic and state management
+│   ├── layout.tsx         # Root layout (HTML shell)
+│   └── globals.css        # Global styles (Tailwind CSS)
+├── components/
+│   ├── ui/                # Reusable UI components (buttons, cards, etc.)
+│   ├── diff/              # Diff visualization components
+│   │   ├── GitDiffView.tsx       # Standard line-by-line diff
+│   │   ├── SideBySideView.tsx    # Split view with synchronized scrolling
+│   │   └── DiffResultViewer.tsx  # Container for switching views
+│   └── legal/             # Legal-specific components (e.g., EntityHighlight)
+└── lib/
+    ├── diff-utils.ts      # API client and helper functions
+    └── types.ts           # TypeScript definitions for Diff data
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Core Logic & Data Flow
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. State Management (`app/page.tsx`)
+The main page acts as the central controller. It manages:
+- **Input State**: `oldText` and `newText` from user input.
+- **Diff Data**: `diffResult` fetched from the backend.
+- **View Configuration**: `viewMode` (Git vs. Side-by-Side), `language` (i18n), and advanced settings like `alignThreshold`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Comparison Process
+1. **User Action**: User enters text and clicks "Start Comparison".
+2. **API Call**: `handleCompare` calls `compareLegalTextsAsync`.
+   - It sends `old_text` and `new_text` to the Rust backend (`/api/compare`).
+   - It can request structural analysis or simple line diffs.
+3. **Lazy Loading**:
+   - Initial comparison might be fast (Git mode).
+   - If the user switches to "Structure View", the app lazily fetches the heavier structural analysis data if it wasn't already loaded.
 
-## Learn More
+### 3. Visualization
 
-To learn more about Next.js, take a look at the following resources:
+#### Git Mode (`GitDiffView`)
+Renders changes line-by-line.
+- **Additions** are green.
+- **Deletions** are red.
+- **Modifications** are shown by pairing deletion and addition lines.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+#### Side-by-Side Mode (`SideBySideView`)
+Renders two panes (Old vs. New).
+- **Alignment**: Uses anchors to ensure corresponding paragraphs stay aligned even when content differs in length.
+- **Synchronized Scrolling**: Scrolling one pane automatically scrolls the other to keep context.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Screenshots
 
-## Deploy on Vercel
+> *[Placeholder: Screenshot of the main input interface with "Old Text" and "New Text" areas]*
+>
+> *[Placeholder: Screenshot of the "Side-by-Side" comparison view showing highlighted differences]*
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Localization
+The app features a built-in localization helper (`t` function) supporting English (`en`) and Chinese (`zh`). This allows seamless switching between languages for international usability.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Styling
+- **Tailwind CSS**: Used for all styling.
+- **Theming**: Supports Dark/Light mode via `next-themes`.
+- **Animations**: `framer-motion` is used for smooth transitions between views.
