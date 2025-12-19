@@ -162,3 +162,4 @@ mod tests {
         assert!(calculate_similarity("abc", "xyz") < 0.5);
     }
 }
+mod sorting_test;

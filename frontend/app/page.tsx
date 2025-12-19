@@ -14,7 +14,8 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -28,25 +29,73 @@ import { AlignedArticleView } from '@/components/diff/AlignedArticleView';
 import { ComparisonSettings } from '@/components/diff/ComparisonSettings';
 import { cn } from '@/lib/utils';
 
-// Examples
-// removed hardcoded examples
-
 export default function Home() {
   const [oldText, setOldText] = useState('');
   const [newText, setNewText] = useState('');
   const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('git');
+  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
 
   // Advanced Settings
   const [alignThreshold, setAlignThreshold] = useState(0.6);
   const [formatText, setFormatText] = useState(true);
   const [showIdentical, setShowIdentical] = useState(true);
 
-  // Initial comparison on mount - SKIP for now, let user choose
-  // useEffect(() => {
-  //   handleCompare();
-  // }, []);
+  // Localization Helper
+  const t = (key: string) => {
+    const dict: Record<string, Record<string, string>> = {
+      zh: {
+        title: '法律条文智能比对',
+        subtitle: '基于 NLP 与 AST 及其精确的法条变更分析工具',
+        reset: '重置',
+        load_example: '加载示例',
+        source_label: '旧版本文本 (Source)',
+        target_label: '新版本文本 (Target)',
+        source_placeholder: '粘贴旧版法律条文...',
+        target_placeholder: '粘贴新版法律条文...',
+        analyzing: '分析中...',
+        start_compare: '开始比对分析',
+        git_mode: 'Git行视图',
+        split_view: '分屏视图',
+        structure_view: '结构化视图',
+        no_structure_data: '未检测到结构化数据，请尝试调整对比设置或重新分析',
+        nav_title: '变更导航',
+        stats_added: '新增',
+        stats_deleted: '删除',
+        stats_modified: '修改',
+        stats_unchanged: '未变',
+        entities_title: '识别的实体',
+        no_entities: '未检测到关键法律实体',
+        check_similarity: '相似度'
+      },
+      en: {
+        title: 'Legal Text Comparison',
+        subtitle: 'Precise analysis tool based on NLP & AST',
+        reset: 'Reset',
+        load_example: 'Load Example',
+        source_label: 'Source Text (Old)',
+        target_label: 'Target Text (New)',
+        source_placeholder: 'Paste old legal text here...',
+        target_placeholder: 'Paste new legal text here...',
+        analyzing: 'Analyzing...',
+        start_compare: 'Start Comparison',
+        git_mode: 'Git View',
+        split_view: 'Split View',
+        structure_view: 'Structure Pro',
+        no_structure_data: 'No structural data detected. Try adjusting settings.',
+        nav_title: 'Navigation',
+        stats_added: 'Added',
+        stats_deleted: 'Deleted',
+        stats_modified: 'Modified',
+        stats_unchanged: 'Unchanged',
+        entities_title: 'Detected Entities',
+        no_entities: 'No key legal entities detected',
+        check_similarity: 'Similarity'
+      }
+    };
+    return dict[language][key] || key;
+  };
 
   const handleCompare = async () => {
     if (!oldText && !newText) return;
@@ -91,10 +140,6 @@ export default function Home() {
       const data = await response.json();
       setOldText(data.old_text);
       setNewText(data.new_text);
-
-      // Auto trigger comparison after loading examples
-      // We need to use the data directly since state update is async
-      // Better to just let user click compare or useEffect but let's just load data for now
     } catch (error) {
       console.error("Failed to load examples:", error);
       alert("无法加载示例数据，请确保后端服务正常运行。");
@@ -102,6 +147,18 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // Auto-scroll to results when ready
+  useEffect(() => {
+    if (diffResult) {
+      setTimeout(() => {
+        const resultsElement = document.getElementById('results-section');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [diffResult]);
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary relative font-sans">
@@ -120,21 +177,30 @@ export default function Home() {
                 <Sparkles className="w-6 h-6 text-primary" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
-                法律条文智能比对
+                {t('title')}
               </h1>
             </div>
             <p className="text-muted-foreground pl-14">
-              基于 NLP 与 AST 及其精确的法条变更分析工具
+              {t('subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-3 pl-14 md:pl-0">
              <ThemeToggle />
+             <Button
+               variant="outline"
+               size="icon"
+               onClick={() => setLanguage(prev => prev === 'zh' ? 'en' : 'zh')}
+               title={language === 'zh' ? 'Switch to English' : '切换为中文'}
+             >
+               <Globe className="w-4 h-4" />
+               <span className="sr-only">Toggle Language</span>
+             </Button>
              <Button variant="outline" onClick={clearInputs} className="gap-2">
-               <RotateCcw className="w-4 h-4" /> Reset
+               <RotateCcw className="w-4 h-4" /> {t('reset')}
              </Button>
              <Button variant="outline" onClick={useExample} className="gap-2" disabled={loading}>
                  {loading ? <Zap className="w-4 h-4 animate-spin" /> : <GitCommit className="w-4 h-4" />}
-                 Load Example
+                 {t('load_example')}
              </Button>
           </div>
         </header>
@@ -145,14 +211,14 @@ export default function Home() {
              <CardHeader className="pb-3">
                <CardTitle className="flex items-center gap-2 text-base font-medium">
                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                 旧版本文本 (Source)
+                 {t('source_label')}
                </CardTitle>
              </CardHeader>
              <CardContent>
                <Textarea
                  value={oldText}
                  onChange={(e) => setOldText(e.target.value)}
-                 placeholder="粘贴旧版法律条文..."
+                 placeholder={t('source_placeholder')}
                  className="min-h-[280px] font-mono text-sm leading-relaxed resize-none bg-background/50 focus:bg-background transition-colors border-none ring-1 ring-border shadow-inner"
                />
              </CardContent>
@@ -162,14 +228,14 @@ export default function Home() {
              <CardHeader className="pb-3">
                <CardTitle className="flex items-center gap-2 text-base font-medium">
                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                 新版本文本 (Target)
+                 {t('target_label')}
                </CardTitle>
              </CardHeader>
              <CardContent>
                <Textarea
                  value={newText}
                  onChange={(e) => setNewText(e.target.value)}
-                 placeholder="粘贴新版法律条文..."
+                 placeholder={t('target_placeholder')}
                  className="min-h-[280px] font-mono text-sm leading-relaxed resize-none bg-background/50 focus:bg-background transition-colors border-none ring-1 ring-border shadow-inner"
                />
              </CardContent>
@@ -186,11 +252,11 @@ export default function Home() {
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4 animate-spin" /> 分析中...
+                <Zap className="w-4 h-4 animate-spin" /> {t('analyzing')}
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <ArrowRightLeft className="w-4 h-4" /> 开始比对分析
+                <ArrowRightLeft className="w-4 h-4" /> {t('start_compare')}
               </span>
             )}
           </Button>
@@ -200,6 +266,7 @@ export default function Home() {
         <AnimatePresence mode="wait">
           {diffResult && (
             <motion.div
+              id="results-section" // Added ID
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -214,7 +281,7 @@ export default function Home() {
                     onClick={() => setViewMode('git')}
                     className="gap-2"
                   >
-                    <GitCommit className="w-4 h-4" /> Git Mode
+                    <GitCommit className="w-4 h-4" /> {t('git_mode')}
                   </Button>
                   <Button
                     variant={viewMode === 'sidebyside' ? 'default' : 'ghost'}
@@ -222,7 +289,7 @@ export default function Home() {
                     onClick={() => setViewMode('sidebyside')}
                     className="gap-2"
                   >
-                    <LayoutTemplate className="w-4 h-4" /> Split View
+                    <LayoutTemplate className="w-4 h-4" /> {t('split_view')}
                   </Button>
                   <Button
                     variant={viewMode === 'article-structure' ? 'default' : 'ghost'}
@@ -231,7 +298,7 @@ export default function Home() {
                     className="gap-2 relative"
                   >
                     <FileDiff className="w-4 h-4" />
-                    Structure Pro
+                    {t('structure_view')}
                     <span className="absolute -top-1 -right-1 flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
@@ -250,7 +317,7 @@ export default function Home() {
                   />
                   <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold border border-primary/20">
                      <CheckCircle2 className="w-4 h-4" />
-                     Similarity {(diffResult.similarity * 100).toFixed(1)}%
+                     {t('check_similarity')} {(diffResult.similarity * 100).toFixed(1)}%
                   </div>
                 </div>
               </div>
@@ -258,7 +325,7 @@ export default function Home() {
                <div className="grid lg:grid-cols-12 gap-6">
                  {/* Main Viewer */}
                  <div className="lg:col-span-9 order-2 lg:order-1">
-                   <Card className="overflow-hidden min-h-[600px] bg-card/40 border-border/40 shadow-xl">
+                   <Card className="overflow-hidden min-h-[850px] bg-card/40 border-border/40 shadow-xl">
                      <CardContent className="p-0">
                        {viewMode === 'git' && (
                          <div className="p-4">
@@ -278,11 +345,12 @@ export default function Home() {
                               <AlignedArticleView
                                 changes={diffResult.articleChanges}
                                 showIdentical={showIdentical}
+                                language={language}
                               />
                             ) : (
                                <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground gap-4">
                                   <AlertCircle className="w-12 h-12 opacity-20" />
-                                  <p>未检测到结构化数据，请尝试调整对比设置或重新分析</p>
+                                  <p>{t('no_structure_data')}</p>
                                </div>
                             )}
                           </div>
@@ -296,12 +364,14 @@ export default function Home() {
                    {/* Mini Map */}
                    <Card className="glass-card shadow-md">
                       <CardHeader className="py-3 px-4 border-b border-border/10">
-                        <CardTitle className="text-sm font-medium">变更导航</CardTitle>
+                        <CardTitle className="text-sm font-medium">{t('nav_title')}</CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
                         <AnchorNavigation
                           changes={diffResult.changes}
-                          className="max-h-[400px]"
+                          articleChanges={diffResult.articleChanges}
+                          className="max-h-[600px]"
+                          language={language}
                         />
                       </CardContent>
                    </Card>
@@ -313,7 +383,7 @@ export default function Home() {
                            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                              {diffResult.stats.additions}
                            </div>
-                           <div className="text-xs text-muted-foreground">新增</div>
+                           <div className="text-xs text-muted-foreground">{t('stats_added')}</div>
                          </div>
                       </Card>
                       <Card className="bg-red-500/5 border-red-500/20">
@@ -321,7 +391,7 @@ export default function Home() {
                            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                              {diffResult.stats.deletions}
                            </div>
-                           <div className="text-xs text-muted-foreground">删除</div>
+                           <div className="text-xs text-muted-foreground">{t('stats_deleted')}</div>
                          </div>
                       </Card>
                       <Card className="bg-amber-500/5 border-amber-500/20">
@@ -329,7 +399,7 @@ export default function Home() {
                            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                              {diffResult.stats.modifications}
                            </div>
-                           <div className="text-xs text-muted-foreground">修改</div>
+                           <div className="text-xs text-muted-foreground">{t('stats_modified')}</div>
                          </div>
                       </Card>
                       <Card className="bg-blue-500/5 border-blue-500/20">
@@ -337,7 +407,7 @@ export default function Home() {
                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                              {diffResult.stats.unchanged}
                            </div>
-                           <div className="text-xs text-muted-foreground">未变</div>
+                           <div className="text-xs text-muted-foreground">{t('stats_unchanged')}</div>
                          </div>
                       </Card>
                    </div>
@@ -345,14 +415,14 @@ export default function Home() {
                    {/* Entities */}
                    <Card className="glass-card overflow-hidden">
                      <CardHeader className="py-3 px-4 border-b border-border/10">
-                       <CardTitle className="text-sm font-medium">识别的实体</CardTitle>
+                       <CardTitle className="text-sm font-medium">{t('entities_title')}</CardTitle>
                      </CardHeader>
                      <CardContent className="p-0 max-h-[300px] overflow-y-auto custom-scrollbar">
                         <div className="divide-y divide-border/20">
 <EntityHighlight entities={diffResult.entities} />
                           {diffResult.entities.length === 0 && (
                             <div className="p-4 text-center text-xs text-muted-foreground">
-                              未检测到关键法律实体
+                              {t('no_entities')}
                             </div>
                           )}
                         </div>

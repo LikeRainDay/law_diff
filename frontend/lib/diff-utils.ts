@@ -66,40 +66,46 @@ export async function compareLegalTextsAsync(
  * Transform backend response to frontend DiffResult format
  */
 function transformBackendResponse(data: any): DiffResult {
-  // Backend returns snake_case, frontend uses camelCase
-  // Need to map if there are differences.
-  // Based on Rust structs, keys might need mapping.
-
-  // Rust: changes: [{ type: "add", new_line: 1, ... }]
-  // TS: changes: [{ type: "add", newLine: 1, ... }]
+  // Backend now returns camelCase, matching frontend types.
+  // We still map explicitly to ensure type safety and handle optional fields correctly.
 
   const changes = data.changes.map((c: any) => ({
     type: c.type,
-    oldLine: c.old_line,
-    newLine: c.new_line,
-    oldContent: c.old_content,
-    newContent: c.new_content,
+    oldLine: c.oldLine,
+    newLine: c.newLine,
+    oldContent: c.oldContent,
+    newContent: c.newContent,
+    entities: c.entities,
   }));
 
   // Transform article changes if present
   let articleChanges = undefined;
-  if (data.article_changes) {
-    articleChanges = data.article_changes.map((ac: any) => ({
-      type: ac.type, // types are already lowercase strings
-      oldArticle: ac.old_article ? {
-        number: ac.old_article.number,
-        content: ac.old_article.content,
-        title: ac.old_article.title,
-        startLine: ac.old_article.start_line || 0,
+  if (data.articleChanges) {
+    articleChanges = data.articleChanges.map((ac: any) => ({
+      type: ac.type,
+      oldArticle: ac.oldArticle ? {
+        number: ac.oldArticle.number,
+        content: ac.oldArticle.content,
+        title: ac.oldArticle.title,
+        startLine: ac.oldArticle.startLine || 0,
+        parents: ac.oldArticle.parents || [],
       } : undefined,
-      newArticles: ac.new_articles ? ac.new_articles.map((na: any) => ({
+      newArticles: ac.newArticles ? ac.newArticles.map((na: any) => ({
         number: na.number,
         content: na.content,
         title: na.title,
-        startLine: na.start_line || 0,
+        startLine: na.startLine || 0,
+        parents: na.parents || [],
       })) : undefined,
       similarity: ac.similarity,
-      details: ac.details,
+      details: ac.details ? ac.details.map((d: any) => ({
+         type: d.type,
+         oldLine: d.oldLine,
+         newLine: d.newLine,
+         oldContent: d.oldContent,
+         newContent: d.newContent
+      })) : undefined,
+      tags: ac.tags || [],
     }));
   }
 
@@ -107,12 +113,12 @@ function transformBackendResponse(data: any): DiffResult {
     similarity: data.similarity,
     changes,
     articleChanges,
-    entities: data.entities.map((e: any) => ({
+    entities: data.entities ? data.entities.map((e: any) => ({
       type: e.type,
       value: e.value,
       confidence: e.confidence,
       position: e.position,
-    })),
+    })) : [],
     stats: data.stats,
   };
 }

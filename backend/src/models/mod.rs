@@ -16,15 +16,19 @@ pub enum ArticleChangeType {
 
 /// Minimal info about an article for diff reference
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArticleInfo {
     pub number: String,
     pub content: String,
     pub title: Option<String>,
-    pub start_line: usize, // For UI navigation
+    pub start_line: usize,
+    #[serde(default)]
+    pub parents: Vec<String>, // Hierarchy context (e.g. ["第一章 总则"])
 }
 
 /// Structural change in an article
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArticleChange {
     #[serde(rename = "type")]
     pub change_type: ArticleChangeType,
@@ -36,6 +40,8 @@ pub struct ArticleChange {
     pub similarity: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Vec<Change>>, // Detailed word-level diff
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 /// Article node type in AST
@@ -48,6 +54,7 @@ pub enum NodeType {
     Article,  // 条
     Clause,   // 款
     Item,     // 项
+    Preamble, // 序言/目录/前言
 }
 
 /// AST node for legal article structure
@@ -58,6 +65,8 @@ pub struct ArticleNode {
     pub title: Option<String>,
     pub content: String,
     pub children: Vec<ArticleNode>,
+    #[serde(default)]
+    pub start_line: usize,
 }
 
 /// Change type in diff
@@ -72,6 +81,7 @@ pub enum ChangeType {
 
 /// Single change in diff result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Change {
     #[serde(rename = "type")]
     pub change_type: ChangeType,
@@ -117,6 +127,7 @@ pub struct Position {
 
 /// Diff statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffStats {
     pub additions: usize,
     pub deletions: usize,
@@ -126,6 +137,7 @@ pub struct DiffStats {
 
 /// Complete diff result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffResult {
     pub similarity: f32,
     pub changes: Vec<Change>,

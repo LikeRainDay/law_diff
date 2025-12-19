@@ -50,6 +50,7 @@ export interface ArticleInfo {
   content: string;
   title?: string;
   startLine: number;
+  parents?: string[];
 }
 
 export interface ArticleChange {
@@ -58,6 +59,7 @@ export interface ArticleChange {
   newArticles?: ArticleInfo[];
   similarity?: number;
   details?: Change[]; // Word-level diff within matched articles
+  tags?: string[];
 }
 
 export interface DiffResult {

@@ -6,28 +6,21 @@ static FORMAT_PATTERN: OnceLock<Regex> = OnceLock::new();
 /// Normalize legal text by ensuring standard structural components (Articles, Clauses)
 /// start on their own lines. This improves diff granularity.
 pub fn normalize_legal_text(text: &str) -> String {
+    // Stage 0: Normalize full-width spaces to standard spaces
+    let text = text.replace('\u{3000}', " ");
+
     let pattern = FORMAT_PATTERN.get_or_init(|| {
         // Matches:
-        // 1. "第X条" (Article)
+        // 1. "第X[条编章节]" (Article, Part, Chapter, Section)
         // 2. "（X）" or "(X)" (Clause in parens)
         // 3. "X." (Item list)
-        // occurring possibly in the middle of a line
-        Regex::new(r"(\s*)(第[一二三四五六七八九十百\d]+条|[（(][一二三四五六七八九十\d]+[)）]|\d+\.)").unwrap()
+        Regex::new(r"(\s*)(第[一二三四五六七八九十百\d]+[条编章节]|[（(][一二三四五六七八九十\d]+[)）]|\d+\.)").unwrap()
     });
 
     // Replace matches with a newline + match (if not already at start of line)
-    // We do a simple pass: split by the pattern and reconstruct, or use replace_all
-    // Logic: If a match is found and it's NOT preceded by a newline (ignoring whitespace), add one.
+    let phase1 = pattern.replace_all(&text, "\n$2").to_string();
 
-    // Using regex replace is effective here.
-    // We want to make sure we don't double-newline if it's already there.
-    // Simpler approach:
-    // 1. Replace all matches with "\n" + match
-    // 2. Then cleanup multiple newlines
-
-    let phase1 = pattern.replace_all(text, "\n$2").to_string();
-
-    // Cleanup: remove empty lines or excessive newlines potentially created
+    // Cleanup: remove empty lines
     let mut result = String::new();
     for line in phase1.lines() {
         let trimmed = line.trim();

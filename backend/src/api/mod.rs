@@ -19,7 +19,8 @@ async fn compare(
 ) -> Result<Json<DiffResult>, StatusCode> {
     // Determine NER mode from options or use default
     let ner_mode = payload.options.ner_mode
-        .and_then(|s| NERMode::from_str(&s))
+        .as_ref()
+        .and_then(|s| NERMode::from_str(s.as_str()))
         .unwrap_or_default();
 
     tracing::info!("Using NER mode: {:?}", ner_mode);

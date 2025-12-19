@@ -24,12 +24,9 @@ pub fn align_articles(
     threshold: f32,
     format_text: bool
 ) -> Vec<ArticleChange> {
-    // 0. Normalize text if requested
-    let (processed_old, processed_new) = if format_text {
-        (normalize_legal_text(old_text), normalize_legal_text(new_text))
-    } else {
-        (old_text.to_string(), new_text.to_string())
-    };
+    // Always normalize for AST parsing robustness
+    let processed_old = normalize_legal_text(old_text);
+    let processed_new = normalize_legal_text(new_text);
 
     // 1. Parse and flatten articles
     let old_ast = parse_article(&processed_old);
@@ -89,6 +86,43 @@ pub fn align_articles(
         &used_new,
         &mut changes,
     );
+
+    // 5. Sort by document order based on start_line
+    // We prioritize NEW structure (Target) because that's what the user sees as the "Result".
+    // For Deleted items, we fall back to Old structure.
+    changes.sort_by(|a, b| {
+        let get_info = |c: &ArticleChange| {
+            // Priority 1: New Article/Target Position
+            if let Some(new_list) = &c.new_articles {
+                if let Some(first) = new_list.first() {
+                    return (first.start_line, 0, first.number.clone()); // 0 = Prefer Target
+                }
+            }
+            // Priority 2: Old Article/Source Position (for Deleted)
+            if let Some(old) = &c.old_article {
+                return (old.start_line, 1, old.number.clone()); // 1 = Source fallback
+            }
+            (usize::MAX, 2, String::new())
+        };
+
+        let (line_a, type_a, num_a) = get_info(a);
+        let (line_b, type_b, num_b) = get_info(b);
+
+        // 1. Primary Sort: Line Number
+        match line_a.cmp(&line_b) {
+            std::cmp::Ordering::Equal => {
+                // 2. Secondary Sort: Article Number (Lexicographical works for simple Chinese numbers)
+                match num_a.cmp(&num_b) {
+                    std::cmp::Ordering::Equal => {
+                         // 3. Tertiary Sort: Prefer Content (Target) over Deleted (Source)
+                         type_a.cmp(&type_b)
+                    },
+                    other => other
+                }
+            },
+            other => other
+        }
+    });
 
     changes
 }
@@ -167,12 +201,36 @@ fn find_one_to_one_matches(
                 ArticleChangeType::Moved
             };
 
+            let mut tags = Vec::new();
+            match change_type {
+                ArticleChangeType::Added => tags.push("added".to_string()),
+                ArticleChangeType::Deleted => tags.push("deleted".to_string()),
+                ArticleChangeType::Modified => tags.push("modified".to_string()),
+                ArticleChangeType::Renumbered => tags.push("renumbered".to_string()),
+                ArticleChangeType::Moved => tags.push("moved".to_string()),
+                ArticleChangeType::Split => tags.push("split".to_string()),
+                ArticleChangeType::Merged => tags.push("merged".to_string()),
+                ArticleChangeType::Unchanged => {},
+            }
+
+            // Add secondary tags
+            if change_type == ArticleChangeType::Renumbered || change_type == ArticleChangeType::Moved {
+                 if best_score < EXACT_MATCH_THRESHOLD {
+                     tags.push("modified".to_string());
+                 }
+            }
+            // Tag preamble specifically
+            if new_art.number == "0" || new_art.title.as_deref() == Some("序言/目录") {
+                tags.push("preamble".to_string());
+            }
+
             changes.push(ArticleChange {
-                change_type,
+                change_type: change_type.clone(),
                 old_article: Some(old_art.clone()),
                 new_articles: Some(vec![new_art.clone()]),
                 similarity: Some(best_score),
                 details: None,
+                tags,
             });
 
             used_old[old_idx] = true;
@@ -235,6 +293,7 @@ fn detect_splits(
                     new_articles: Some(split_articles),
                     similarity: Some(avg_score),
                     details: None,
+                    tags: vec!["split".to_string()],
                 });
 
                 used_old[old_idx] = true;
@@ -303,6 +362,7 @@ fn detect_merges(
                         new_articles: Some(vec![new_art.clone()]),
                         similarity: Some(avg_score),
                         details: None,
+                        tags: vec!["merged".to_string()],
                     });
                     used_old[*old_idx] = true;
                 }
@@ -330,6 +390,7 @@ fn handle_remaining_articles(
                 new_articles: None,
                 similarity: None,
                 details: None,
+                tags: vec!["deleted".to_string()],
             });
         }
     }
@@ -343,29 +404,48 @@ fn handle_remaining_articles(
                 new_articles: Some(vec![new_art.clone()]),
                 similarity: None,
                 details: None,
+                tags: vec!["added".to_string()],
             });
         }
     }
 }
 
-/// Helper to flatten AST into a list of articles
+/// Helper to flatten AST into a list of articles with hierarchy context
 fn flatten_articles(node: &ArticleNode) -> Vec<ArticleInfo> {
     let mut articles = Vec::new();
-    collect_articles_recursive(node, &mut articles);
+    let parent_stack = Vec::new();
+    collect_articles_recursive(node, &mut articles, &parent_stack);
     articles
 }
 
-fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>) {
-    if node.node_type == NodeType::Article {
+fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, parent_stack: &[String]) {
+    // If this node is an article or preamble, add it to the list
+    if matches!(node.node_type, NodeType::Article | NodeType::Preamble) {
         list.push(ArticleInfo {
             number: node.number.clone(),
             content: node.content.clone(),
             title: node.title.clone(),
-            start_line: 0, // TODO: Parser needs to capture line numbers
+            start_line: node.start_line,
+            parents: parent_stack.to_vec(),
         });
     }
 
+    // Determine if this node contributes to the parent stack for its children
+    let mut current_stack = parent_stack.to_vec();
+    match node.node_type {
+        NodeType::Part | NodeType::Chapter | NodeType::Section => {
+            let label = if let Some(title) = &node.title {
+                format!("{} {}", node.number, title)
+            } else {
+                node.number.clone()
+            };
+            current_stack.push(label);
+        }
+        _ => {}
+    }
+
+    // Recurse into children
     for child in &node.children {
-        collect_articles_recursive(child, list);
+        collect_articles_recursive(child, list, &current_stack);
     }
 }
