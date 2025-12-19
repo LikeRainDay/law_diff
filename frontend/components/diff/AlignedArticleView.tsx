@@ -307,7 +307,8 @@ function AlignedArticleRow({ change, language, idx }: { change: ArticleChange, l
 function ChangeTypeBadge({ type, language }: { type: string, language: 'zh' | 'en' }) {
   // Map simplified types to styles
   let normalizedType = type;
-  if (['added', 'deleted', 'modified', 'renumbered', 'split', 'merged', 'moved', 'unchanged', 'preamble'].includes(type)) {
+  const knownTypes = ['added', 'deleted', 'modified', 'renumbered', 'split', 'merged', 'moved', 'unchanged', 'preamble', 'replaced'];
+  if (knownTypes.includes(type)) {
      normalizedType = type;
   } else {
      normalizedType = 'unknown';
@@ -320,10 +321,11 @@ function ChangeTypeBadge({ type, language }: { type: string, language: 'zh' | 'e
     renumbered: "bg-violet-700 text-white border-violet-800 shadow-md",
     split: "bg-sky-700 text-white border-sky-800 shadow-md",
     merged: "bg-indigo-700 text-white border-indigo-800 shadow-md",
-    moved: "bg-pink-700 text-white border-pink-800 shadow-md",
+    moved: "bg-pink-700 text-white border-pink-700 shadow-md",
     unchanged: "bg-slate-500 text-white border-slate-600 shadow-sm",
     preamble: "bg-teal-700 text-white border-teal-800 shadow-md",
     replaced: "bg-orange-700 text-white border-orange-800 shadow-md",
+    unknown: "bg-slate-400 text-white shadow-sm"
   };
 
   const style = styles[normalizedType] || "bg-slate-100 text-slate-600";
