@@ -408,6 +408,7 @@ export default function Home() {
                         <AnchorNavigation
                           changes={diffResult.changes}
                           articleChanges={diffResult.articleChanges}
+                          viewMode={viewMode}
                           className="max-h-[600px]"
                           language={language}
                         />
