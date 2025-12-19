@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { GitCommit, LayoutTemplate, FileDiff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { GitCommit, LayoutTemplate, FileDiff, CheckCircle2, AlertCircle, Zap } from 'lucide-react';
 import { DiffResult, ViewMode } from '@/lib/types';
 import GitDiffView from './GitDiffView';
 import SideBySideView from './SideBySideView';
@@ -24,6 +24,7 @@ interface DiffResultViewerProps {
   setFormatText: (v: boolean) => void;
   showIdentical: boolean;
   setShowIdentical: (v: boolean) => void;
+  loading?: boolean;
   t: (key: string) => string;
 }
 
@@ -38,6 +39,7 @@ export const DiffResultViewer = React.memo(({
   setFormatText,
   showIdentical,
   setShowIdentical,
+  loading = false,
   t
 }: DiffResultViewerProps) => {
 
@@ -91,6 +93,7 @@ export const DiffResultViewer = React.memo(({
             onFormatTextChange={setFormatText}
             showIdentical={showIdentical}
             onShowIdenticalChange={setShowIdentical}
+            language={language}
           />
           <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold border border-primary/20">
             <CheckCircle2 className="w-4 h-4" />
@@ -103,7 +106,28 @@ export const DiffResultViewer = React.memo(({
         {/* Main Viewer */}
         <div className="lg:col-span-9 order-2 lg:order-1">
           <Card className="overflow-hidden min-h-[850px] bg-card/40 border-border/40 shadow-xl">
-            <CardContent className="p-0">
+            <CardContent className="p-0 relative">
+              <AnimatePresence>
+                {loading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm rounded-xl"
+                  >
+                    <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-2xl border border-primary/20">
+                      <div className="relative">
+                        <Zap className="w-10 h-10 text-primary animate-pulse" />
+                        <div className="absolute inset-0 w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                      </div>
+                      <p className="text-base font-semibold text-primary animate-pulse">
+                        {t('analyzing')}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <AnimatePresence mode="wait">
                 <motion.div
                   key={viewMode}

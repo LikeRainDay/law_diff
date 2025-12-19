@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Change, ArticleChange, ViewMode } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { ChevronRight, Plus, Minus, Edit3, Folder, FileText, ChevronDown, List, Layers, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, ChevronLeft, Plus, Minus, Edit3, Folder, FileText, ChevronDown, List, Layers, Activity } from 'lucide-react';
 
 // Helper for translations
 function getTagLabel(tag: string, lang: 'zh' | 'en' = 'zh'): string {
@@ -67,11 +68,45 @@ const GitLineNavigation = React.memo(({
   viewMode: ViewMode,
   language?: 'zh' | 'en'
 }) => {
+  const [scrollProgress, setScrollProgress] = React.useState(0);
+  const [currentNavIdx, setCurrentNavIdx] = React.useState(0);
+  const minimapRef = React.useRef<HTMLDivElement>(null);
+
   const significantChanges = React.useMemo(() =>
     changes.filter(c => c.type !== 'unchanged'),
   [changes]);
 
+  const significantIndices = React.useMemo(() =>
+    changes.map((c, i) => c.type !== 'unchanged' ? i : -1).filter(i => i !== -1),
+  [changes]);
+
+  // Track scroll position to update the mini-map indicator
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const winScroll = window.scrollY;
+      const height = document.documentElement.scrollHeight - window.innerHeight;
+      if (height <= 0) return;
+
+      const progress = winScroll / height;
+      setScrollProgress(progress);
+
+      // Auto-scroll the minimap stripes to match documentation progress
+      if (minimapRef.current) {
+        const scrollWidth = minimapRef.current.scrollWidth;
+        const clientWidth = minimapRef.current.clientWidth;
+        const maxScroll = scrollWidth - clientWidth;
+        if (maxScroll > 0) {
+           minimapRef.current.scrollLeft = progress * maxScroll;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const scrollToChange = (index: number) => {
+    setCurrentNavIdx(index);
     // If sidebyside, we might need a different scrolling logic or target
     const targetId = viewMode === 'sidebyside' ? `chunk-${index}` : `change-${index}`;
     const element = document.getElementById(targetId);
@@ -82,6 +117,21 @@ const GitLineNavigation = React.memo(({
     }
   };
 
+  const navToChange = (direction: 'next' | 'prev') => {
+    if (significantIndices.length === 0) return;
+
+    let nextIdx = 0;
+    if (direction === 'next') {
+        const found = significantIndices.find(i => i > currentNavIdx);
+        nextIdx = found !== undefined ? found : significantIndices[0];
+    } else {
+        const found = [...significantIndices].reverse().find(i => i < currentNavIdx);
+        nextIdx = found !== undefined ? found : significantIndices[significantIndices.length - 1];
+    }
+
+    scrollToChange(nextIdx);
+  };
+
   const t_list = language === 'zh' ? '变更追踪器' : 'Change Tracker';
 
   return (
@@ -90,31 +140,65 @@ const GitLineNavigation = React.memo(({
       className
     )}>
        <div className="bg-muted/30 px-5 py-4 border-b border-border flex items-center justify-between">
-        <h3 className="font-semibold text-sm text-foreground flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5">
           <Activity className="w-4 h-4 text-primary" />
-          {t_list}
-        </h3>
-        <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
-            {significantChanges.length}
-        </span>
+          <h3 className="font-semibold text-sm text-foreground">{t_list}</h3>
+          <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20 ml-2">
+              {significantChanges.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+           <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 rounded-md"
+                onClick={() => navToChange('prev')}
+                disabled={significantChanges.length === 0}
+            >
+             <ChevronLeft className="w-4 h-4" />
+           </Button>
+           <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 rounded-md"
+                onClick={() => navToChange('next')}
+                disabled={significantChanges.length === 0}
+            >
+             <ChevronRight className="w-4 h-4" />
+           </Button>
+        </div>
       </div>
 
       {/* Modern Mini-map / Progress Strip */}
-      <div className="px-4 py-2 border-b border-border bg-background/50">
-         <div className="flex gap-0.5 h-7 rounded-lg bg-muted/50 p-1 overflow-hidden ring-1 ring-border">
-           {changes.slice(0, 1000).map((change, index) => { // Render limit for performance
+      <div className="px-4 py-3 border-b border-border bg-background/50 relative">
+         <div
+            ref={minimapRef}
+            className="flex gap-[1px] h-8 rounded-lg bg-muted/30 p-1 overflow-x-auto custom-scrollbar ring-1 ring-border relative z-10 scroll-smooth"
+         >
+           {/* Viewport Indicator inside the scrollable area */}
+           <div
+              className="absolute top-0 bottom-0 w-8 bg-primary/20 border-x border-primary/40 pointer-events-none transition-all duration-300 z-20"
+              style={{
+                left: `${scrollProgress * 100}%`,
+                transform: 'translateX(-50%)',
+                minWidth: '20px'
+              }}
+           />
+
+           {changes.slice(0, 1000).map((change, index) => {
              if (change.type === 'unchanged') return <div key={index} className="flex-1" style={{ minWidth: '1px' }} />;
              return (
                <button
                  key={index}
                  onClick={() => scrollToChange(index)}
                  className={cn(
-                   'flex-1 rounded-[2px] transition-all hover:scale-150 hover:z-10 shadow-sm',
-                   change.type === 'add' && 'bg-emerald-500 dark:bg-emerald-400',
-                   change.type === 'delete' && 'bg-rose-500 dark:bg-rose-400',
-                   change.type === 'modify' && 'bg-amber-500 dark:bg-amber-400'
+                   'flex-1 rounded-[1px] transition-all hover:scale-[2] hover:z-20 shadow-sm shrink-0',
+                   change.type === 'add' && 'bg-green-600',
+                   change.type === 'delete' && 'bg-red-600',
+                   change.type === 'modify' && 'bg-amber-500'
                  )}
-                 style={{ minWidth: '3px' }}
+                 style={{ minWidth: '4px' }}
                  title={`${getTagLabel(change.type, language)} - L${change.oldLine || change.newLine}`}
                />
              );
@@ -183,6 +267,31 @@ const StructureTreeNavigation = React.memo(({ articleChanges, className, languag
 
   const t_title = language === 'zh' ? '结构化视图' : 'Structure View';
 
+  const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
+  const [currentNavIdx, setCurrentNavIdx] = React.useState<number>(0);
+
+  const significantChangeIndices = React.useMemo(() => {
+    return articleChanges
+      .map((c, i) => (c.type !== 'unchanged' ? i : -1))
+      .filter(i => i !== -1);
+  }, [articleChanges]);
+
+  const navToChange = (direction: 'next' | 'prev') => {
+    if (significantChangeIndices.length === 0) return;
+
+    let nextIdx = 0;
+    if (direction === 'next') {
+        const found = significantChangeIndices.find(i => i > currentNavIdx);
+        nextIdx = found !== undefined ? found : significantChangeIndices[0];
+    } else {
+        const found = [...significantChangeIndices].reverse().find(i => i < currentNavIdx);
+        nextIdx = found !== undefined ? found : significantChangeIndices[significantChangeIndices.length - 1];
+    }
+
+    setCurrentNavIdx(nextIdx);
+    scrollToArticle(nextIdx);
+  };
+
   // Group by Parent (full hierarchy to avoid collisions)
   const groupedChanges = React.useMemo(() => {
     const groups: { title: string, items: { change: ArticleChange, originalIndex: number }[] }[] = [];
@@ -208,17 +317,65 @@ const StructureTreeNavigation = React.memo(({ articleChanges, className, languag
 
   return (
     <div className={cn(
-      'flex flex-col h-full bg-card border border-border rounded-2xl overflow-hidden shadow-xl glass-card transition-all duration-300',
+      'flex flex-col h-full bg-card border border-border rounded-2xl overflow-hidden shadow-xl glass-card transition-all duration-300 relative',
       className
     )}>
+      {/* Popover Preview (Top out) */}
+      <AnimatePresence>
+        {hoveredIdx !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute top-16 left-4 right-4 z-50 bg-popover/95 backdrop-blur-md border border-border rounded-xl shadow-2xl p-4 pointer-events-none"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                {getTagLabel(articleChanges[hoveredIdx].type, language)}
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                 {articleChanges[hoveredIdx].similarity ? `Similarity: ${(articleChanges[hoveredIdx].similarity! * 100).toFixed(0)}%` : ""}
+              </span>
+            </div>
+            <div className="text-xs leading-relaxed line-clamp-4 text-foreground/90 italic">
+               "{articleChanges[hoveredIdx].newArticles?.[0]?.content || articleChanges[hoveredIdx].oldArticle?.content}"
+            </div>
+            <div className="mt-2 text-[9px] text-muted-foreground">
+               Click to jump to line {articleChanges[hoveredIdx].newArticles?.[0]?.startLine || articleChanges[hoveredIdx].oldArticle?.startLine}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="bg-muted/30 px-5 py-4 border-b border-border flex items-center justify-between">
-        <h3 className="font-semibold text-sm text-foreground flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5">
           <Layers className="w-4 h-4 text-primary" />
-          {t_title}
-        </h3>
-        <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
-            {articleChanges.filter(c => c.type !== 'unchanged').length}
-        </span>
+          <h3 className="font-semibold text-sm text-foreground">{t_title}</h3>
+          <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20 ml-2">
+              {significantChangeIndices.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+           <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 rounded-md"
+                onClick={() => navToChange('prev')}
+                disabled={significantChangeIndices.length === 0}
+            >
+             <ChevronLeft className="w-4 h-4" />
+           </Button>
+           <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 rounded-md"
+                onClick={() => navToChange('next')}
+                disabled={significantChangeIndices.length === 0}
+            >
+             <ChevronRight className="w-4 h-4" />
+           </Button>
+        </div>
       </div>
 
       <div className="overflow-y-auto custom-scrollbar p-3 space-y-6 flex-grow">
@@ -238,19 +395,24 @@ const StructureTreeNavigation = React.memo(({ articleChanges, className, languag
                  </div>
 
                  {/* Visual Stripes for this Group */}
-                 <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-4 gap-1.5 px-1">
+                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-4 xl:grid-cols-5 gap-2 px-1">
                      {group.items.map(({ change, originalIndex }, idx) => {
                          const type = change.type;
-                         const label = change.newArticles?.[0]?.number || change.oldArticle?.number || "?";
+                         const oldLabel = change.oldArticle?.number;
+                         const newLabel = change.newArticles?.[0]?.number;
+                         const label = newLabel || oldLabel || "?";
+                         const isRenumbered = oldLabel && newLabel && oldLabel !== newLabel;
 
                          return (
                             <motion.button
                                 key={idx}
-                                whileHover={{ scale: 1.1, y: -2 }}
+                                whileHover={{ scale: 1.05, y: -2 }}
                                 whileTap={{ scale: 0.95 }}
+                                onMouseEnter={() => setHoveredIdx(originalIndex)}
+                                onMouseLeave={() => setHoveredIdx(null)}
                                 onClick={() => scrollToArticle(originalIndex)}
                                 className={cn(
-                                    "aspect-square min-w-[32px] rounded-lg flex flex-col items-center justify-center transition-all shadow-sm ring-1 ring-border border-2 border-transparent",
+                                    "relative min-h-[40px] px-1 rounded-lg flex flex-col items-center justify-center transition-all shadow-sm ring-1 ring-border border-2 border-transparent",
                                     type === 'added' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
                                     type === 'deleted' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
                                     type === 'modified' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
@@ -258,13 +420,28 @@ const StructureTreeNavigation = React.memo(({ articleChanges, className, languag
                                 )}
                                 title={`${getTagLabel(type, language)}: 第${label}条`}
                             >
-                                <span className="text-[9px] font-bold leading-none">{label}</span>
+                                <div className="flex flex-col items-center">
+                                    {isRenumbered ? (
+                                        <div className="flex flex-col items-center leading-none">
+                                            <span className="text-[7px] opacity-60 line-through">{oldLabel}</span>
+                                            <span className="text-[9px] font-black">{newLabel}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-[10px] font-bold leading-none">{label}</span>
+                                    )}
+                                </div>
                                 <div className={cn(
-                                    "w-1 h-1 rounded-full mt-1",
+                                    "w-1.5 h-1.5 rounded-full mt-1.5",
                                     type === 'added' ? "bg-emerald-500" :
                                     type === 'deleted' ? "bg-rose-500" :
                                     type === 'modified' ? "bg-amber-500" : "bg-indigo-500"
                                 )} />
+
+                                {isRenumbered && (
+                                    <div className="absolute -top-1 -right-1">
+                                        <div className="w-2 h-2 bg-indigo-500 rounded-full border border-white dark:border-slate-900" />
+                                    </div>
+                                )}
                             </motion.button>
                          );
                      })}

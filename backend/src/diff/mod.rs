@@ -11,8 +11,11 @@ use crate::models::{Change, ChangeType, DiffResult, DiffStats, Entity};
 
 /// Compare two texts and generate diff result
 pub fn compare_texts(old_text: &str, new_text: &str, entities: Vec<Entity>) -> DiffResult {
-    // Use similar crate for line-level diff for better legal text stability
-    let diff = TextDiff::from_lines(old_text, new_text);
+    // Trim and normalize lines for better stability
+    let old_normalized: String = old_text.lines().map(|l| l.trim_end()).collect::<Vec<_>>().join("\n");
+    let new_normalized: String = new_text.lines().map(|l| l.trim_end()).collect::<Vec<_>>().join("\n");
+
+    let diff = TextDiff::from_lines(&old_normalized, &new_normalized);
 
     let mut changes = Vec::new();
     let mut old_line = 1;
@@ -89,46 +92,61 @@ pub fn compare_texts(old_text: &str, new_text: &str, entities: Vec<Entity>) -> D
     }
 }
 
-/// Merge adjacent add/delete changes into modifications
+/// Merge adjacent add/delete changes into modifications.
+/// Improved to handle blocks of changes for better alignment.
 fn merge_adjacent_changes(changes: Vec<Change>) -> Vec<Change> {
     let mut merged = Vec::new();
     let mut i = 0;
 
     while i < changes.len() {
-        let current = &changes[i];
+        if changes[i].change_type == ChangeType::Unchanged {
+            merged.push(changes[i].clone());
+            i += 1;
+            continue;
+        }
 
-        // Check if we have a next change
-        if i + 1 < changes.len() {
-            let next = &changes[i + 1];
+        let mut deletes = Vec::new();
+        let mut adds = Vec::new();
 
-            // Check for adjacent delete/add pattern
-            if (current.change_type == ChangeType::Delete && next.change_type == ChangeType::Add) ||
-               (current.change_type == ChangeType::Add && next.change_type == ChangeType::Delete) {
+        // Collect continuous deletes
+        while i < changes.len() && changes[i].change_type == ChangeType::Delete {
+            deletes.push(changes[i].clone());
+            i += 1;
+        }
+        // Collect continuous adds
+        while i < changes.len() && changes[i].change_type == ChangeType::Add {
+            adds.push(changes[i].clone());
+            i += 1;
+        }
 
-                let (delete_change, add_change) = if current.change_type == ChangeType::Delete {
-                    (current, next)
-                } else {
-                    (next, current)
-                };
+        // If we found both, pair them up as Modify as much as possible
+        let max_pairs = deletes.len().max(adds.len());
+        for j in 0..max_pairs {
+            let del = deletes.get(j);
+            let add = adds.get(j);
 
-                // Merge into modify
-                merged.push(Change {
-                    change_type: ChangeType::Modify,
-                    old_line: delete_change.old_line,
-                    new_line: add_change.new_line,
-                    old_content: delete_change.old_content.clone(),
-                    new_content: add_change.new_content.clone(),
-                    entities: None,
-                });
-
-                i += 2; // Skip both changes
-                continue;
+            match (del, add) {
+                (Some(d), Some(a)) => {
+                    merged.push(Change {
+                        change_type: ChangeType::Modify,
+                        old_line: d.old_line,
+                        new_line: a.new_line,
+                        old_content: d.old_content.clone(),
+                        new_content: a.new_content.clone(),
+                        entities: None,
+                    });
+                }
+                (Some(d), None) => {
+                    merged.push(d.clone());
+                }
+                (None, Some(a)) => {
+                    merged.push(a.clone());
+                }
+                (None, None) => {}
             }
         }
 
-        // No merge, just add the current change
-        merged.push(current.clone());
-        i += 1;
+        // If we are at a point where the next one is Unchanged, just continue the outer loop
     }
 
     merged

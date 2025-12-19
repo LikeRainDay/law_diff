@@ -32,8 +32,8 @@ export default function SideBySideView({ changes, className }: SideBySideViewPro
           <div className="bg-green-500/10 px-4 py-2 text-green-600 dark:text-green-400">新版本</div>
       </div>
 
-      {/* Scrollable Content Area */}
-      <div className="overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-900" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+      {/* Content Area (Infinite Height) */}
+      <div className="bg-background">
           <div className="flex flex-col">
               {lineGroups.map((group, index) => (
                   <SideBySideRow key={index} group={group} index={index} />
@@ -47,22 +47,22 @@ export default function SideBySideView({ changes, className }: SideBySideViewPro
 // Single Row Component ensures heights match perfectly
 const SideBySideRow = React.memo(({ group, index }: { group: any, index: number }) => {
     return (
-        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border border-b border-border/40 min-h-[32px] hover:bg-muted/5 transition-colors group" id={`chunk-${index}`}>
+        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border/60 border-b border-border/30 min-h-[32px] hover:bg-muted/30 transition-colors group" id={`chunk-${index}`}>
 
             {/* Left Side (Old) */}
             <div className={cn(
                 "relative flex items-stretch",
-                group.type === 'delete' && "bg-red-500/10",
-                group.type === 'modify' && "bg-amber-500/10"
+                group.type === 'delete' && "bg-red-500/[0.04]",
+                group.type === 'modify' && "bg-amber-500/[0.04]"
             )}>
                 {/* Line Number */}
-                <div className="w-10 flex-shrink-0 bg-muted/20 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none">
+                <div className="w-12 flex-shrink-0 bg-muted/40 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none font-mono">
                     {group.oldLine || ""}
                 </div>
                 {/* Content */}
                 <div className={cn(
-                    "flex-1 p-2 font-mono text-xs break-all whitespace-pre-wrap",
-                    (group.type === 'delete' || group.type === 'modify') && "text-slate-700 dark:text-slate-300",
+                    "flex-1 p-3 font-mono text-[13px] break-words whitespace-pre-wrap leading-relaxed",
+                    (group.type === 'delete' || group.type === 'modify') ? "text-foreground" : "text-muted-foreground/70",
                     group.type === 'add' && "opacity-0 select-none" // Empty slot for added line
                 )}>
                     {group.type !== 'add' && (group.type === 'modify' ? highlightCharacterDiff(group.oldContent, group.newContent, 'old') : group.oldContent)}
@@ -70,24 +70,24 @@ const SideBySideRow = React.memo(({ group, index }: { group: any, index: number 
             </div>
 
             {/* Central Gutter (Visual Flow) */}
-            <div className="relative bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+            <div className="relative bg-muted/20 flex items-center justify-center overflow-hidden border-x border-border/10">
                 <GutterVisualization type={group.type} />
             </div>
 
             {/* Right Side (New) */}
             <div className={cn(
                 "relative flex items-stretch",
-                group.type === 'add' && "bg-green-500/10",
-                group.type === 'modify' && "bg-amber-500/10"
+                group.type === 'add' && "bg-green-500/[0.04]",
+                group.type === 'modify' && "bg-amber-500/[0.04]"
             )}>
                  {/* Line Number */}
-                 <div className="w-10 flex-shrink-0 bg-muted/20 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none">
+                 <div className="w-12 flex-shrink-0 bg-muted/40 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none font-mono">
                     {group.newLine || ""}
                 </div>
                 {/* Content */}
                 <div className={cn(
-                    "flex-1 p-2 font-mono text-xs break-all whitespace-pre-wrap",
-                     (group.type === 'add' || group.type === 'modify') && "text-slate-800 dark:text-slate-200",
+                    "flex-1 p-3 font-mono text-[13px] break-words whitespace-pre-wrap leading-relaxed",
+                     (group.type === 'add' || group.type === 'modify') ? "text-foreground font-medium" : "text-muted-foreground/70",
                      group.type === 'delete' && "opacity-0 select-none" // Empty slot for deleted line
                 )}>
                     {group.type !== 'delete' && (group.type === 'modify' ? highlightCharacterDiff(group.oldContent, group.newContent, 'new') : group.newContent)}
@@ -105,17 +105,17 @@ const GutterVisualization = React.memo(({ type }: { type: string }) => {
     return (
         <div className="relative w-full h-full flex items-center justify-center">
             {type === 'modify' && (
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-amber-200 dark:text-amber-800/40 fill-current opacity-60">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-amber-500/20 fill-current">
                      <path d="M0,0 L100,0 L100,100 L0,100 Z" />
                 </svg>
             )}
             {type === 'add' && (
-                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-green-200 dark:text-green-800/40 fill-current opacity-60">
+                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-green-500/20 fill-current">
                      <path d="M50,0 L100,0 L100,100 L50,100 L0,50 Z" />
                 </svg>
             )}
             {type === 'delete' && (
-                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-red-200 dark:text-red-800/40 fill-current opacity-60">
+                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-red-500/20 fill-current">
                      <path d="M0,0 L50,0 L100,50 L50,100 L0,100 Z" />
                 </svg>
             )}

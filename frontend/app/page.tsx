@@ -69,7 +69,16 @@ export default function Home() {
         stats_unchanged: '未变',
         entities_title: '识别的实体',
         no_entities: '未检测到关键法律实体',
-        check_similarity: '相似度'
+        check_similarity: '相似度',
+        settings_title: '对比设置',
+        settings_adv_title: '高级对比设置',
+        settings_desc: '调整算法参数以优化法律文本的结构化对比效果。',
+        settings_sensitivity: '对齐敏感度',
+        settings_sensitivity_desc: '控制判定两个条款为"修改"还是"不同"的相似度阈值。值越高，算法越倾向于认为它们是不同的条款（拆分/新增）。',
+        settings_format: '智能格式化',
+        settings_format_desc: '预处理文本，确保每一条/款都在单独一行，提升对比准确度。',
+        settings_show_identical: '显示相同条款',
+        settings_show_identical_desc: '在对比视图中包含未变更的条款。关闭以专注于差异。'
       },
       en: {
         title: 'Legal Text Comparison',
@@ -93,7 +102,16 @@ export default function Home() {
         stats_unchanged: 'Unchanged',
         entities_title: 'Detected Entities',
         no_entities: 'No key legal entities detected',
-        check_similarity: 'Similarity'
+        check_similarity: 'Similarity',
+        settings_title: 'Settings',
+        settings_adv_title: 'Advanced Settings',
+        settings_desc: 'Adjust algorithmic parameters to optimize legal text structural comparison.',
+        settings_sensitivity: 'Alignment Sensitivity',
+        settings_sensitivity_desc: 'Controls the similarity threshold for "Modify" vs "Different". Higher values make the algorithm stricter, preferring split/added types.',
+        settings_format: 'Smart Formatting',
+        settings_format_desc: 'Pre-process text to ensure each article/clause is on a single line for better accuracy.',
+        settings_show_identical: 'Show Unchanged',
+        settings_show_identical_desc: 'Include unchanged articles in the comparison view. Disable to focus on differences.'
       }
     };
     return dict[language][key] || key;
@@ -207,7 +225,7 @@ export default function Home() {
       <div className="fixed inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none z-0" />
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-      <main className="relative z-10 container mx-auto p-6 lg:p-12 space-y-8 max-w-7xl">
+      <main className="relative z-10 container mx-auto p-4 lg:p-8 space-y-8 max-w-[98%]">
 
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/40">
@@ -229,10 +247,15 @@ export default function Home() {
              <Button
                variant="outline"
                size="icon"
+               className="font-black text-[10px] flex items-center justify-center transition-all bg-muted hover:bg-primary/10"
                onClick={() => setLanguage(prev => prev === 'zh' ? 'en' : 'zh')}
                title={language === 'zh' ? 'Switch to English' : '切换为中文'}
              >
-               <Globe className="w-4 h-4" />
+               {language === 'zh' ? (
+                 <span className="animate-in fade-in zoom-in duration-300">EN</span>
+               ) : (
+                 <span className="animate-in fade-in zoom-in duration-300 text-[12px]">中</span>
+               )}
                <span className="sr-only">Toggle Language</span>
              </Button>
              <Button variant="outline" onClick={clearInputs} className="gap-2">
@@ -316,6 +339,7 @@ export default function Home() {
                setFormatText={setFormatText}
                showIdentical={showIdentical}
                setShowIdentical={setShowIdentical}
+               loading={loading}
                t={t}
             />
           )}

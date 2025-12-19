@@ -100,9 +100,9 @@ export function AlignedArticleView({ changes, showIdentical = true, language = '
             onClick={() => toggleTag(tag)}
             className={cn(
                "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all",
-               selectedTags.includes(tag)
-                 ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
-                 : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                selectedTags.includes(tag)
+                  ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20 shadow-sm"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
             )}
           >
              <TagDot tag={tag} />
@@ -218,8 +218,12 @@ function AlignedArticleRow({ change, language, idx }: { change: ArticleChange, l
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "relative rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md",
-        type === 'unchanged' ? "border-border/40" : "border-border"
+        "relative rounded-[2rem] border p-8 transition-all hover:shadow-lg",
+        // Base container: Pure Minimalist
+        "bg-transparent border-slate-200/60 dark:border-slate-800",
+
+        // Unchanged articles are flat and borderless
+        type === 'unchanged' ? "border-transparent opacity-60 grayscale-[0.3]" : "shadow-xl shadow-slate-100 dark:shadow-none"
       )}
       id={`article-row-${idx}`}
     >
@@ -232,8 +236,8 @@ function AlignedArticleRow({ change, language, idx }: { change: ArticleChange, l
 
       {/* Top Right Similarity Badge */}
       {change.similarity !== undefined && type !== 'added' && type !== 'deleted' && (
-        <div className="absolute -top-3 right-6 z-10 flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800 shadow-sm font-bold text-xs">
-           <Activity className="w-3.5 h-3.5" />
+        <div className="absolute -top-3 right-6 z-10 flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-600 text-white border border-blue-700 shadow-lg font-black text-[10px] tracking-tight whitespace-nowrap">
+           <Activity className="w-3 h-3" />
            <span>{(change.similarity * 100).toFixed(0)}% {language === 'zh' ? '相似度' : 'Similarity'}</span>
         </div>
       )}
@@ -310,16 +314,16 @@ function ChangeTypeBadge({ type, language }: { type: string, language: 'zh' | 'e
   }
 
   const styles: Record<string, string> = {
-    added: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 border-green-200 dark:border-green-800",
-    deleted: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-200 dark:border-red-800",
-    modified: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    renumbered: "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 border-purple-200 dark:border-purple-800",
-    split: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-    merged: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
-    moved: "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300 border-pink-200 dark:border-pink-800",
-    unchanged: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700",
-    preamble: "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300 border-teal-200 dark:border-teal-800",
-    replaced: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border-orange-200 dark:border-orange-800",
+    added: "bg-green-700 text-white border-green-800 shadow-md",
+    deleted: "bg-red-700 text-white border-red-800 shadow-md",
+    modified: "bg-amber-600 text-white border-amber-700 shadow-md",
+    renumbered: "bg-violet-700 text-white border-violet-800 shadow-md",
+    split: "bg-sky-700 text-white border-sky-800 shadow-md",
+    merged: "bg-indigo-700 text-white border-indigo-800 shadow-md",
+    moved: "bg-pink-700 text-white border-pink-800 shadow-md",
+    unchanged: "bg-slate-500 text-white border-slate-600 shadow-sm",
+    preamble: "bg-teal-700 text-white border-teal-800 shadow-md",
+    replaced: "bg-orange-700 text-white border-orange-800 shadow-md",
   };
 
   const style = styles[normalizedType] || "bg-slate-100 text-slate-600";
@@ -350,7 +354,7 @@ function TagDot({ tag }: { tag: string }) {
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="flex h-full min-h-[80px] w-full items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-400">
+    <div className="flex h-full min-h-[100px] w-full items-center justify-center rounded-xl border-2 border-dashed border-muted bg-muted/20 p-6 text-xs text-muted-foreground font-medium italic">
       {label}
     </div>
   );
@@ -386,21 +390,28 @@ function ArticleCard({ article, type, side, compareTo, isMulti, similarity }: Ar
 
   return (
     <div className={cn(
-      "group relative flex flex-col gap-2 rounded-lg border p-4 text-sm leading-relaxed transition-colors",
+      "group relative flex flex-col gap-3 rounded-2xl border p-6 text-[14px] leading-relaxed transition-all duration-300",
 
-      // Common Base: White bg (in light mode)
-      "bg-white dark:bg-slate-900",
+      // Source (Old) - No Background, just a subtle dashed border
+      side === 'old' && [
+        "bg-transparent border-dashed border-slate-200 text-slate-500",
+        "dark:border-slate-800 dark:text-slate-400"
+      ],
 
-      // Source vs Target specific styling
-      side === 'old'
-        ? "border-dashed border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400"
-        : "border-solid border-slate-200 shadow-sm text-slate-800 dark:border-slate-800 dark:text-slate-200",
+      // Target (New) - Clean White Card (Solid)
+      side === 'new' && [
+        "bg-white border-solid border-slate-200 shadow-xl shadow-slate-200/40 text-slate-800 ring-1 ring-slate-100",
+        "dark:bg-slate-900 dark:border-slate-800 dark:shadow-none dark:text-slate-200 dark:ring-0"
+      ],
 
-      // Status Highlights (Subtle)
-      (type === 'added' && side === 'new') && "ring-1 ring-green-500/20 bg-green-50/10",
-      (type === 'deleted' && side === 'old') && "ring-1 ring-red-500/20 bg-red-50/10",
+      // Status Highlights (Subtle Ring, No BG)
+      (type === 'added' && side === 'new') && "border-green-500/30 ring-1 ring-green-500/10 bg-transparent",
+      (type === 'deleted' && side === 'old') && "border-red-500/30 ring-1 ring-red-500/10 bg-transparent",
 
-      isMulti && "ml-4 border-l-4 border-l-blue-400/50"
+      isMulti && "ml-6 border-l-4 border-l-primary/20",
+
+      // If unchanged, eliminate almost everything
+      type === 'unchanged' && "border-transparent shadow-none ring-0 p-0"
     )}>
       {/* Header Line */}
       <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-1">
@@ -445,7 +456,7 @@ function highlightDiff(text1: string, text2: string, side: 'old' | 'new') {
 
     if (side === 'old' && isDeletion) {
       return (
-        <span key={i} className="bg-red-100 text-red-900 decoration-red-900/30 line-through decoration-2 dark:bg-red-900/30 dark:text-red-100 dark:decoration-red-100/50 rounded-sm px-0.5">
+        <span key={i} className="bg-red-500/15 text-red-600 font-bold decoration-red-500/40 line-through decoration-[1.5px] dark:bg-red-500/20 dark:text-red-400 dark:decoration-red-400/50 rounded px-0.5">
           {text}
         </span>
       );
@@ -453,7 +464,7 @@ function highlightDiff(text1: string, text2: string, side: 'old' | 'new') {
 
     if (side === 'new' && isAddition) {
       return (
-        <span key={i} className="bg-green-100 text-green-950 font-bold dark:bg-green-900/30 dark:text-green-50 rounded-sm px-0.5">
+        <span key={i} className="bg-green-600/15 text-green-700 font-bold dark:bg-green-500/20 dark:text-green-300 rounded px-0.5 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.1)]">
           {text}
         </span>
       );
