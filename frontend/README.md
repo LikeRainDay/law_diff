@@ -1,8 +1,22 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Law Compare Frontend
 
-## Getting Started
+这是一个基于 [Next.js](https://nextjs.org) 构建的法条对比前端应用。
 
-First, run the development server:
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+
+### 2. 运行开发服务器
 
 ```bash
 npm run dev
@@ -14,23 +28,63 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 [http://localhost:3000](http://localhost:3000) 查看结果。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. 构建生产版本
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## 项目结构
 
-To learn more about Next.js, take a look at the following resources:
+```
+frontend/
+├── app/                 # Next.js App Router 页面及布局
+├── components/          # React 组件
+│   ├── diff/            # 核心对比组件 (GitDiffView, SideBySideView 等)
+│   ├── layout/          # 布局组件
+│   └── ui/              # 通用 UI 组件
+├── lib/                 # 工具函数和类型定义
+│   ├── diff-utils.ts    # 差异处理逻辑
+│   └── types.ts         # 类型定义
+└── public/              # 静态资源
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 核心功能与逻辑
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. 法条对比 (Comparison)
 
-## Deploy on Vercel
+前端通过调用后端 API 获取法条对比结果，并提供两种可视化模式：
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **API 调用**: `POST /api/compare` (代理到后端 `http://127.0.0.1:8000/api/compare`)
+- **数据流**: 用户输入旧法条和新法条 -> 发送请求 -> 获取差异数据 (`additions`, `deletions`, `modifications`, `entities`) -> 渲染视图。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 2. 核心组件
+
+#### `components/diff/SideBySideView.tsx` (左右对照模式)
+- **功能**: 左侧显示旧文本，右侧显示新文本。
+- **高亮**: 使用绿色背景高亮新增内容，红色背景高亮删除内容。
+- **对齐**: 尝试将相关的法条段落对齐显示，方便阅读。
+
+#### `components/diff/GitDiffView.tsx` (Git 风格模式)
+- **功能**: 类似于 GitHub 的 diff 视图，以行或段落为单位展示差异。
+- **逻辑**: 直接展示文本的增删变迁，适合快速查看具体的文本改动。
+
+#### `components/diff/AnchorNavigation.tsx` (差异导航)
+- **功能**: 提供浮动的导航栏，允许用户在差异点之间快速跳转。
+- **交互**: 点击“上一个”或“下一个”按钮，页面平滑滚动到对应的差异位置。
+
+### 3. 差异处理逻辑
+
+前端主要依赖 `diff-match-patch` 库和自定义的 `lib/diff-utils.ts` 来处理文本差异。虽然大部分重型计算（如分词、AST 解析）由 Rust 后端完成，前端仍负责最终的 UI 渲染逻辑和交互体验。
+
+## 环境变量
+
+如果需要修改后端 API 地址，请在 `.env.local` 中配置（或修改 `next.config.ts` 中的 rewrite 规则）：
+
+```env
+# 示例
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
