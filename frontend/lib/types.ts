@@ -7,7 +7,7 @@ export interface CompareOptions {
   formatText?: boolean;
 }
 export interface ArticleNode {
-  type: 'chapter' | 'section' | 'article' | 'clause' | 'item';
+  type: 'chapter' | 'section' | 'article' | 'clause' | 'item' | 'preamble';
   number: string;
   title?: string;
   content: string;
@@ -43,13 +43,16 @@ export type ArticleChangeType =
   | 'merged'      // Multiple articles merged into one
   | 'moved'       // Position changed significantly
   | 'added'
-  | 'deleted';
+  | 'deleted'
+  | 'replaced'
+  | 'preamble';   // Metadata/Intro/TOC
 
 export interface ArticleInfo {
   number: string;
   content: string;
   title?: string;
   startLine: number;
+  nodeType: 'chapter' | 'section' | 'article' | 'clause' | 'item' | 'preamble';
   parents?: string[];
 }
 

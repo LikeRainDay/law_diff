@@ -13,7 +13,7 @@ interface SideBySideViewProps {
 // [REFACTORED] SideBySideView using Grid Rows for perfect alignment
 export default function SideBySideView({ changes, className }: SideBySideViewProps) {
   // Group changes into lines for side-by-side display
-  const lineGroups = groupChangesForSideBySide(changes);
+  const lineGroups = React.useMemo(() => groupChangesForSideBySide(changes), [changes]);
 
   return (
     <div className={cn('border rounded-lg overflow-hidden flex flex-col', className)}>
@@ -45,9 +45,9 @@ export default function SideBySideView({ changes, className }: SideBySideViewPro
 }
 
 // Single Row Component ensures heights match perfectly
-function SideBySideRow({ group, index }: { group: any, index: number }) {
+const SideBySideRow = React.memo(({ group, index }: { group: any, index: number }) => {
     return (
-        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border border-b border-border/40 min-h-[32px] hover:bg-muted/5 transition-colors group">
+        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border border-b border-border/40 min-h-[32px] hover:bg-muted/5 transition-colors group" id={`chunk-${index}`}>
 
             {/* Left Side (Old) */}
             <div className={cn(
@@ -95,15 +95,12 @@ function SideBySideRow({ group, index }: { group: any, index: number }) {
             </div>
         </div>
     );
-}
+});
 
-function GutterVisualization({ type }: { type: string }) {
+SideBySideRow.displayName = 'SideBySideRow';
+
+const GutterVisualization = React.memo(({ type }: { type: string }) => {
     if (type === 'unchanged') return null;
-
-    // Use SVGs to draw "Flows"
-    // Modify: Trapezoid or direct connection
-    // Add: Right-pointing Funnel
-    // Delete: Left-pointing Funnel
 
     return (
         <div className="relative w-full h-full flex items-center justify-center">
@@ -114,19 +111,20 @@ function GutterVisualization({ type }: { type: string }) {
             )}
             {type === 'add' && (
                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-green-200 dark:text-green-800/40 fill-current opacity-60">
-                     {/* Triangle pointing right from center? Or full block? Full block implies insertion. */}
                      <path d="M50,0 L100,0 L100,100 L50,100 L0,50 Z" />
                 </svg>
             )}
             {type === 'delete' && (
                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full text-red-200 dark:text-red-800/40 fill-current opacity-60">
-                     {/* Triangle pointing left */}
                      <path d="M0,0 L50,0 L100,50 L50,100 L0,100 Z" />
                 </svg>
             )}
         </div>
     );
-}
+});
+
+GutterVisualization.displayName = 'GutterVisualization';
+
 
 // Character-level diff highlighting using diff-match-patch
 function highlightCharacterDiff(text1: string, text2: string, side: 'old' | 'new'): React.ReactNode {

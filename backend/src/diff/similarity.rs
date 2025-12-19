@@ -16,6 +16,8 @@ pub struct SimilarityScore {
     pub char_similarity: f32,
     /// Token-based Jaccard coefficient (0.0 - 1.0)
     pub jaccard_similarity: f32,
+    /// Containment similarity (min overlap / min size) - good for additions/deletions
+    pub containment_similarity: f32,
     /// Legal keyword overlap weight (0.0 - 1.0)
     pub keyword_weight: f32,
     /// Final composite score (0.0 - 1.0)
@@ -24,13 +26,18 @@ pub struct SimilarityScore {
 
 impl SimilarityScore {
     /// Create a new similarity score with calculated composite
-    pub fn new(char_sim: f32, jaccard_sim: f32, keyword_weight: f32) -> Self {
-        // Weighted average: 40% char, 40% jaccard, 20% keyword
-        let composite = char_sim * 0.4 + jaccard_sim * 0.4 + keyword_weight * 0.2;
+    pub fn new(char_sim: f32, jaccard_sim: f32, containment_sim: f32, keyword_weight: f32) -> Self {
+        // Updated weight profile:
+        // 30% Char (Levenshtein/Similar)
+        // 20% Jaccard (Set Overlap/Union) - harsh on additions
+        // 30% Containment (Set Overlap/Min) - lenient on additions/deletions
+        // 20% Keyword
+        let composite = char_sim * 0.3 + jaccard_sim * 0.2 + containment_sim * 0.3 + keyword_weight * 0.2;
 
         Self {
             char_similarity: char_sim,
             jaccard_similarity: jaccard_sim,
+            containment_similarity: containment_sim,
             keyword_weight,
             composite,
         }
@@ -39,7 +46,7 @@ impl SimilarityScore {
 
 /// Calculate character-level similarity using the similar crate
 pub fn calculate_char_similarity(text1: &str, text2: &str) -> f32 {
-    TextDiff::from_words(text1, text2).ratio() as f32
+    TextDiff::from_chars(text1, text2).ratio() as f32
 }
 
 /// Calculate Jaccard similarity coefficient based on token sets
@@ -62,6 +69,18 @@ pub fn calculate_jaccard_similarity(tokens1: &HashSet<String>, tokens2: &HashSet
     }
 
     intersection as f32 / union as f32
+}
+
+/// Calculate containment similarity (Overlap / Min Size)
+/// This is much better for detecting matches when one text is a subset of another (appended content)
+pub fn calculate_containment_similarity(tokens1: &HashSet<String>, tokens2: &HashSet<String>) -> f32 {
+    let min_size = tokens1.len().min(tokens2.len());
+    if min_size == 0 {
+        return if tokens1.is_empty() && tokens2.is_empty() { 1.0 } else { 0.0 };
+    }
+
+    let intersection = tokens1.intersection(tokens2).count();
+    intersection as f32 / min_size as f32
 }
 
 /// Calculate legal keyword weight based on keyword overlap
@@ -99,14 +118,15 @@ pub fn calculate_composite_similarity(
     tokens2: &HashSet<String>,
 ) -> SimilarityScore {
     if text1 == text2 {
-        return SimilarityScore::new(1.0, 1.0, 1.0);
+        return SimilarityScore::new(1.0, 1.0, 1.0, 1.0);
     }
 
     let char_sim = calculate_char_similarity(text1, text2);
     let jaccard_sim = calculate_jaccard_similarity(tokens1, tokens2);
+    let containment_sim = calculate_containment_similarity(tokens1, tokens2);
     let keyword_weight = calculate_legal_keyword_weight(text1, text2);
 
-    SimilarityScore::new(char_sim, jaccard_sim, keyword_weight)
+    SimilarityScore::new(char_sim, jaccard_sim, containment_sim, keyword_weight)
 }
 
 #[cfg(test)]
@@ -193,6 +213,7 @@ mod tests {
 
         assert!(score.char_similarity > 0.6);
         assert!(score.jaccard_similarity > 0.8);
+        assert!(score.containment_similarity > 0.9);
         assert!(score.composite > 0.65);
     }
 }

@@ -10,27 +10,28 @@ static CLAUSE_PATTERN: OnceLock<Regex> = OnceLock::new();
 static ITEM_PATTERN: OnceLock<Regex> = OnceLock::new();
 
 fn get_part_pattern() -> &'static Regex {
-    PART_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)编\s*(.*)").unwrap())
+    PART_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百千万零两\d]+)编").unwrap())
 }
 
 fn get_chapter_pattern() -> &'static Regex {
-    CHAPTER_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)章\s*(.*)").unwrap())
+    CHAPTER_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百千万零两\d]+)章").unwrap())
 }
 
 fn get_section_pattern() -> &'static Regex {
-    SECTION_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)节\s*(.*)").unwrap())
+    SECTION_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百千万零两\d]+)节").unwrap())
 }
 
 fn get_article_pattern() -> &'static Regex {
-    ARTICLE_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百\d]+)条\s*(.*)").unwrap())
+    // Capture both number and optional title/content starting with space or bracket
+    ARTICLE_PATTERN.get_or_init(|| Regex::new(r"^第([一二三四五六七八九十百千万零两\d]+)条([\s　]*)(.*)").unwrap())
 }
 
 fn get_clause_pattern() -> &'static Regex {
-    CLAUSE_PATTERN.get_or_init(|| Regex::new(r"^[（(]([一二三四五六七八九十\d]+)[)）]\s*(.*)").unwrap())
+    CLAUSE_PATTERN.get_or_init(|| Regex::new(r"^[（(]([一二三四五六七八九十百千万零\d]+)[)）]").unwrap())
 }
 
 fn get_item_pattern() -> &'static Regex {
-    ITEM_PATTERN.get_or_init(|| Regex::new(r"^(\d+)\.\s*(.+)").unwrap())
+    ITEM_PATTERN.get_or_init(|| Regex::new(r"^(\d+)\.").unwrap())
 }
 
 /// Parse legal article text into AST structure
@@ -80,14 +81,34 @@ pub fn parse_article(text: &str) -> ArticleNode {
         // Check for Part (编)
         if let Some(caps) = get_part_pattern().captures(trimmed) {
             check_preamble(&mut root);
-            // Save previous part if exists (and its children)
+            if let Some(clause) = current_clause.take() {
+                if let Some(ref mut article) = current_article {
+                    article.children.push(clause);
+                }
+            }
+            if let Some(article) = current_article.take() {
+                if let Some(ref mut section) = current_section {
+                    section.children.push(article);
+                } else if let Some(ref mut chapter) = current_chapter {
+                    chapter.children.push(article);
+                } else if let Some(ref mut part) = current_part {
+                    part.children.push(article);
+                } else {
+                    root.children.push(article);
+                }
+            }
+            if let Some(section) = current_section.take() {
+                if let Some(ref mut chapter) = current_chapter {
+                    chapter.children.push(section);
+                }
+            }
+
             if let Some(mut part) = current_part.take() {
                 if let Some(chapter) = current_chapter.take() {
                     part.children.push(chapter);
                 }
                 root.children.push(part);
             } else if let Some(chapter) = current_chapter.take() {
-                // If there was a stray chapter before any part
                 root.children.push(chapter);
             }
 
@@ -109,40 +130,84 @@ pub fn parse_article(text: &str) -> ArticleNode {
             continue;
         }
 
-        // Check for chapter
         if let Some(caps) = get_chapter_pattern().captures(trimmed) {
             check_preamble(&mut root);
-            if let Some(mut chapter) = current_chapter.take() {
-                 if let Some(ref mut part) = current_part {
-                    part.children.push(chapter);
-                 } else {
-                    root.children.push(chapter);
-                 }
-            } else if let Some(r) = current_section.take() {
-                 // edge case cleanup
+
+            // Skip if it looks like a mid-sentence reference rather than a header
+            // (e.g. "第十章 规定了...")
+            let after_marker = trimmed.get(caps.get(0).unwrap().end()..).unwrap_or("");
+            if after_marker.starts_with("规定") || after_marker.starts_with("之") {
+                // Continuation text
+            } else {
+                if let Some(clause) = current_clause.take() {
+                    if let Some(ref mut article) = current_article {
+                        article.children.push(clause);
+                    }
+                }
+                if let Some(article) = current_article.take() {
+                    if let Some(ref mut section) = current_section {
+                        section.children.push(article);
+                    } else if let Some(ref mut chapter) = current_chapter {
+                        chapter.children.push(article);
+                    } else if let Some(ref mut part) = current_part {
+                        part.children.push(article);
+                    } else {
+                        root.children.push(article);
+                    }
+                }
+                if let Some(section) = current_section.take() {
+                    if let Some(ref mut chapter) = current_chapter {
+                        chapter.children.push(section);
+                    }
+                }
+
+                if let Some(mut chapter) = current_chapter.take() {
+                     if let Some(ref mut part) = current_part {
+                        part.children.push(chapter);
+                     } else {
+                        root.children.push(chapter);
+                     }
+                }
+
+                let number = caps.get(1).unwrap().as_str().to_string();
+                let title = if after_marker.is_empty() { None } else { Some(after_marker.trim().to_string()) };
+
+                current_chapter = Some(ArticleNode {
+                    node_type: NodeType::Chapter,
+                    number,
+                    title,
+                    content: String::new(),
+                    children: Vec::new(),
+                    start_line: line_idx + 1,
+                });
+                current_section = None;
+                current_article = None;
+                current_clause = None;
+                continue;
             }
-
-            let number = caps.get(1).unwrap().as_str().to_string();
-            let title = caps.get(2).map(|m| m.as_str().to_string());
-
-            current_chapter = Some(ArticleNode {
-                node_type: NodeType::Chapter,
-                number,
-                title,
-                content: String::new(),
-                children: Vec::new(),
-                start_line: line_idx + 1,
-            });
-            current_section = None;
-            current_article = None;
-            current_clause = None;
-            continue;
         }
 
         // Check for section
         if let Some(caps) = get_section_pattern().captures(trimmed) {
             check_preamble(&mut root);
-            if let Some(mut section) = current_section.take() {
+            if let Some(clause) = current_clause.take() {
+                if let Some(ref mut article) = current_article {
+                    article.children.push(clause);
+                }
+            }
+            if let Some(article) = current_article.take() {
+                if let Some(ref mut section) = current_section {
+                    section.children.push(article);
+                } else if let Some(ref mut chapter) = current_chapter {
+                    chapter.children.push(article);
+                } else if let Some(ref mut part) = current_part {
+                    part.children.push(article);
+                } else {
+                    root.children.push(article);
+                }
+            }
+
+            if let Some(section) = current_section.take() {
                 if let Some(ref mut chapter) = current_chapter {
                     chapter.children.push(section);
                 }
@@ -167,60 +232,86 @@ pub fn parse_article(text: &str) -> ArticleNode {
         // Check for article (条)
         if let Some(caps) = get_article_pattern().captures(trimmed) {
             check_preamble(&mut root);
-            if let Some(article) = current_article.take() {
-                if let Some(ref mut section) = current_section {
-                    section.children.push(article);
-                } else if let Some(ref mut chapter) = current_chapter {
-                    chapter.children.push(article);
-                } else if let Some(ref mut part) = current_part {
-                    part.children.push(article); // Direct article under part
-                } else {
-                    root.children.push(article);
+
+            let after_marker = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+
+            // Mid-sentence reference check: "第X条 规定的", "第X条 之内容"
+            if after_marker.starts_with("规定") || after_marker.starts_with("之") {
+                // Ignore as article header, let it fall through to content
+            } else {
+                // FLUSH: Clause -> Article
+                if let Some(clause) = current_clause.take() {
+                    if let Some(ref mut article) = current_article {
+                        article.children.push(clause);
+                    }
                 }
+
+                if let Some(article) = current_article.take() {
+                    if let Some(ref mut section) = current_section {
+                        section.children.push(article);
+                    } else if let Some(ref mut chapter) = current_chapter {
+                        chapter.children.push(article);
+                    } else if let Some(ref mut part) = current_part {
+                        part.children.push(article); // Direct article under part
+                    } else {
+                        root.children.push(article);
+                    }
+                }
+
+                let number = caps.get(1).unwrap().as_str().to_string();
+                let content = after_marker.trim().to_string();
+
+                current_article = Some(ArticleNode {
+                    node_type: NodeType::Article,
+                    number,
+                    title: None, // Title is part of content for articles
+                    content,
+                    children: Vec::new(),
+                    start_line: line_idx + 1,
+                });
+                current_clause = None;
+                continue;
             }
-
-            let number = caps.get(1).unwrap().as_str().to_string();
-            let content = caps.get(2).unwrap().as_str().to_string();
-
-            current_article = Some(ArticleNode {
-                node_type: NodeType::Article,
-                number,
-                title: None,
-                content,
-                children: Vec::new(),
-                start_line: line_idx + 1,
-            });
-            current_clause = None;
-            continue;
         }
 
         // Check for clause (款)
         if let Some(caps) = get_clause_pattern().captures(trimmed) {
-            check_preamble(&mut root); // Theoretically possible for clause start?
-            if let Some(clause) = current_clause.take() {
-                if let Some(ref mut article) = current_article {
-                    article.children.push(clause);
+            check_preamble(&mut root);
+            let full_marker = caps.get(0).unwrap().as_str();
+            let after_marker = trimmed.get(full_marker.len()..).unwrap_or("");
+
+            if after_marker.starts_with("规定") || after_marker.starts_with("之") {
+                // fall through
+            } else {
+                if let Some(clause) = current_clause.take() {
+                    if let Some(ref mut article) = current_article {
+                        article.children.push(clause);
+                    }
                 }
+
+                let number = caps.get(1).unwrap().as_str().to_string();
+                // Persist the marker (一) in the content for display
+                let content = format!("{}{}", full_marker, after_marker.trim());
+
+                current_clause = Some(ArticleNode {
+                    node_type: NodeType::Clause,
+                    number,
+                    title: None,
+                    content,
+                    children: Vec::new(),
+                    start_line: line_idx + 1,
+                });
+                continue;
             }
-
-            let number = caps.get(1).unwrap().as_str().to_string();
-            let content = caps.get(2).unwrap().as_str().to_string();
-
-            current_clause = Some(ArticleNode {
-                node_type: NodeType::Clause,
-                number,
-                title: None,
-                content,
-                children: Vec::new(),
-                start_line: line_idx + 1,
-            });
-            continue;
         }
 
         // Check for item (项)
         if let Some(caps) = get_item_pattern().captures(trimmed) {
+            let full_marker = caps.get(0).unwrap().as_str();
+            let after_marker = trimmed.get(full_marker.len()..).unwrap_or("");
+
             let number = caps.get(1).unwrap().as_str().to_string();
-            let content = caps.get(2).unwrap().as_str().to_string();
+            let content = format!("{}{}", full_marker, after_marker.trim());
 
             let item = ArticleNode {
                 node_type: NodeType::Item,
@@ -420,5 +511,60 @@ mod tests {
         assert_eq!(article.number, "四");
         assert_eq!(article.children.len(), 0, "Inline clauses should not become child nodes");
         assert!(article.content.contains("（一）义务一"), "Content should be preserved inline");
+    }
+
+    #[test]
+    fn test_parse_article_with_tail_clauses() {
+        // Test that clauses followed by a new article are not lost
+        let text = r#"第一条 内容：
+（一）第一款；
+（二）第二款。
+第二条 接下来。
+"#;
+        let ast = parse_article(text);
+        assert_eq!(ast.children.len(), 2);
+
+        let art1 = &ast.children[0];
+        assert_eq!(art1.children.len(), 2, "Article 1 should have 2 clauses");
+        assert!(art1.children[0].content.contains("（一）"), "Marker should be preserved");
+        assert!(art1.children[1].content.contains("（二）"), "Marker should be preserved");
+
+        let art2 = &ast.children[1];
+        assert_eq!(art2.number, "二");
+    }
+
+    #[test]
+    fn test_article_renumbering_alignment() {
+        use crate::diff::aligner::align_articles;
+
+        let old = "第一条 A\n第二条 B";
+        let new = "第一条 新内容\n第二条 A\n第三条 B";
+
+        // Threshold 0.6
+        let changes = align_articles(old, new, 0.6, false);
+
+        // Expect:
+        // New 1: Added (or Modified if matches something? No, it's new)
+        // New 2: Modified (Matched to Old 1)
+        // New 3: Modified (Matched to Old 2)
+
+        // Find match for Old 1
+        let match_old1 = changes.iter().find(|c| c.old_article.as_ref().map(|a| a.number.as_str()) == Some("一")).unwrap();
+        assert_eq!(match_old1.new_articles.as_ref().unwrap()[0].number, "二", "Old 1 should match New 2 due to similarity");
+
+        let match_old2 = changes.iter().find(|c| c.old_article.as_ref().map(|a| a.number.as_str()) == Some("二")).unwrap();
+        assert_eq!(match_old2.new_articles.as_ref().unwrap()[0].number, "三", "Old 2 should match New 3 due to similarity");
+    }
+
+    #[test]
+    fn test_parse_articles_with_zero() {
+        let text = r#"第二百条 内容
+第二百零一条 零一内容
+第二百零二条 零二内容
+"#;
+        let ast = parse_article(text);
+        assert_eq!(ast.children.len(), 3);
+        assert_eq!(ast.children[1].number, "二百零一");
+        assert_eq!(ast.children[2].number, "二百零二");
     }
 }

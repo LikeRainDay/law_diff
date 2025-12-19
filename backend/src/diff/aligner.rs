@@ -8,13 +8,38 @@ use crate::nlp::formatter::normalize_legal_text;
 const EXACT_MATCH_THRESHOLD: f32 = 0.98;
 const MEDIUM_SIMILARITY_THRESHOLD: f32 = 0.4;
 
-/// Represents a candidate alignment between old and new articles
-#[derive(Debug, Clone)]
-struct AlignmentCandidate {
-    old_indices: Vec<usize>,
-    new_indices: Vec<usize>,
-    total_score: f32,
-    avg_score: f32,
+fn chinese_to_int(s: &str) -> usize {
+    if s == "root" { return 0; }
+    if s == "0" || s.is_empty() { return 0; }
+
+    let mut result = 0;
+    let mut temp = 0;
+
+    let mut mapping = std::collections::HashMap::new();
+    mapping.insert('零', 0); mapping.insert('一', 1); mapping.insert('二', 2); mapping.insert('两', 2);
+    mapping.insert('三', 3); mapping.insert('四', 4); mapping.insert('五', 5); mapping.insert('六', 6);
+    mapping.insert('七', 7); mapping.insert('八', 8); mapping.insert('九', 9); mapping.insert('十', 10);
+    mapping.insert('百', 100); mapping.insert('千', 1000); mapping.insert('万', 10000);
+
+    for c in s.chars() {
+        if let Some(&v) = mapping.get(&c) {
+            if v >= 10 {
+                if temp == 0 { temp = 1; }
+                if v == 10000 {
+                    result = (result + temp) * 10000;
+                    temp = 0;
+                } else {
+                    result += temp * v;
+                    temp = 0;
+                }
+            } else {
+                temp = temp * 10 + v;
+            }
+        } else if let Some(d) = c.to_digit(10) {
+            temp = temp * 10 + d as usize;
+        }
+    }
+    result + temp
 }
 
 /// Main function to perform intelligent structural alignment of legal articles
@@ -47,7 +72,7 @@ pub fn align_articles(
     let mut used_old = vec![false; old_articles.len()];
     let mut used_new = vec![false; new_articles.len()];
 
-    // Stage 1: Find high-confidence 1:1 matches
+    // Stage 1: Find high-confidence 1:1 matches (Similarity takes precedence for renumbering)
     find_one_to_one_matches(
         &old_articles,
         &new_articles,
@@ -56,6 +81,16 @@ pub fn align_articles(
         &mut used_new,
         &mut changes,
         threshold,
+    );
+
+    // Stage 2: Perfect number matches (as fallback for items similarity didn't catch)
+    find_number_matches(
+        &old_articles,
+        &new_articles,
+        &similarity_matrix,
+        &mut used_old,
+        &mut used_new,
+        &mut changes,
     );
 
     // Stage 2: Detect split patterns (1:N)
@@ -87,39 +122,44 @@ pub fn align_articles(
         &mut changes,
     );
 
-    // 5. Sort by document order based on start_line
-    // We prioritize NEW structure (Target) because that's what the user sees as the "Result".
-    // For Deleted items, we fall back to Old structure.
+    // 5. Sort by document order
     changes.sort_by(|a, b| {
-        let get_info = |c: &ArticleChange| {
-            // Priority 1: New Article/Target Position
-            if let Some(new_list) = &c.new_articles {
-                if let Some(first) = new_list.first() {
-                    return (first.start_line, 0, first.number.clone()); // 0 = Prefer Target
-                }
-            }
-            // Priority 2: Old Article/Source Position (for Deleted)
-            if let Some(old) = &c.old_article {
-                return (old.start_line, 1, old.number.clone()); // 1 = Source fallback
-            }
-            (usize::MAX, 2, String::new())
+        let is_preamble = |c: &ArticleChange| {
+            c.change_type == ArticleChangeType::Preamble ||
+            c.new_articles.as_ref().map_or(false, |list| list.iter().any(|a| a.node_type == NodeType::Preamble)) ||
+            c.old_article.as_ref().map_or(false, |a| a.node_type == NodeType::Preamble)
         };
 
-        let (line_a, type_a, num_a) = get_info(a);
-        let (line_b, type_b, num_b) = get_info(b);
+        // 1. Preamble always first
+        let pa = is_preamble(a);
+        let pb = is_preamble(b);
+        if pa != pb {
+            return if pa { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater };
+        }
 
-        // 1. Primary Sort: Line Number
-        match line_a.cmp(&line_b) {
-            std::cmp::Ordering::Equal => {
-                // 2. Secondary Sort: Article Number (Lexicographical works for simple Chinese numbers)
-                match num_a.cmp(&num_b) {
-                    std::cmp::Ordering::Equal => {
-                         // 3. Tertiary Sort: Prefer Content (Target) over Deleted (Source)
-                         type_a.cmp(&type_b)
-                    },
-                    other => other
+        let get_sort_info = |c: &ArticleChange| {
+            if let Some(new_list) = &c.new_articles {
+                if let Some(first) = new_list.first() {
+                    return (chinese_to_int(&first.number), first.start_line, 0);
                 }
-            },
+            }
+            if let Some(old) = &c.old_article {
+                return (chinese_to_int(&old.number), old.start_line, 1);
+            }
+            (usize::MAX, usize::MAX, 2)
+        };
+
+        let (num_a, line_a, src_a) = get_sort_info(a);
+        let (num_b, line_b, src_b) = get_sort_info(b);
+
+        // 2. Sort by Article Number primarily (if both have numbers)
+        if num_a != num_b && num_a != 0 && num_b != 0 {
+            return num_a.cmp(&num_b);
+        }
+
+        // 3. Fallback to Line Number (Start Line)
+        match line_a.cmp(&line_b) {
+            std::cmp::Ordering::Equal => src_a.cmp(&src_b),
             other => other
         }
     });
@@ -140,13 +180,19 @@ fn build_similarity_matrix(
 
         for new_art in new_articles {
             let new_tokens = tokenize_to_set(&new_art.content);
-            let score = calculate_composite_similarity(
+            let mut score_wrapper = calculate_composite_similarity(
                 &old_art.content,
                 &new_art.content,
                 &old_tokens,
                 &new_tokens,
             );
-            row.push(score);
+
+            // Context bonus: if chapters/sections match, it's more likely the same article
+            if !old_art.parents.is_empty() && old_art.parents == new_art.parents {
+                score_wrapper.composite = (score_wrapper.composite + 0.15).min(1.0);
+            }
+
+            row.push(score_wrapper);
         }
         matrix.push(row);
     }
@@ -154,7 +200,66 @@ fn build_similarity_matrix(
     matrix
 }
 
+/// Stage 0: Match articles with identical numbers as primary signal
+fn find_number_matches(
+    old_articles: &[ArticleInfo],
+    new_articles: &[ArticleInfo],
+    similarity_matrix: &[Vec<SimilarityScore>],
+    used_old: &mut [bool],
+    used_new: &mut [bool],
+    changes: &mut Vec<ArticleChange>,
+) {
+    for (old_idx, old_art) in old_articles.iter().enumerate() {
+        if used_old[old_idx] || old_art.number == "root" || old_art.number == "0" {
+            continue;
+        }
+
+        for (new_idx, new_art) in new_articles.iter().enumerate() {
+            if used_new[new_idx] {
+                continue;
+            }
+
+            // If numbers match exactly, we align them regardless of similarity
+            // (Similarity match stage 1 has already run, so this won't steal articles that moved elsewhere)
+            if old_art.number == new_art.number {
+                let score = similarity_matrix[old_idx][new_idx].composite;
+
+                let change_type = if score >= EXACT_MATCH_THRESHOLD {
+                    ArticleChangeType::Unchanged
+                } else if score >= 0.15 {
+                    ArticleChangeType::Modified
+                } else {
+                    // Reused number but completely different content (e.g. Article 29 reuse)
+                    ArticleChangeType::Replaced
+                };
+
+                let mut tags = Vec::new();
+                match change_type {
+                    ArticleChangeType::Modified => tags.push("modified".to_string()),
+                    ArticleChangeType::Replaced => tags.push("replaced".to_string()),
+                    _ => {}
+                }
+
+                changes.push(ArticleChange {
+                    change_type,
+                    old_article: Some(old_art.clone()),
+                    new_articles: Some(vec![new_art.clone()]),
+                    similarity: Some(score),
+                    details: None,
+                    tags,
+                });
+
+                used_old[old_idx] = true;
+                used_new[new_idx] = true;
+                break;
+            }
+        }
+    }
+}
+
 /// Find high-confidence 1:1 matches
+/// Stage 1: Find high-confidence sequential matches using LCS principle.
+/// This handles renumbering shifts (e.g. Old Art 29 -> New Art 30) much better than greedy matching.
 fn find_one_to_one_matches(
     old_articles: &[ArticleInfo],
     new_articles: &[ArticleInfo],
@@ -164,22 +269,104 @@ fn find_one_to_one_matches(
     changes: &mut Vec<ArticleChange>,
     threshold: f32,
 ) {
-    for (old_idx, old_art) in old_articles.iter().enumerate() {
-        if used_old[old_idx] {
-            continue;
-        }
+    let n = old_articles.len();
+    let m = new_articles.len();
+    if n == 0 || m == 0 { return; }
 
-        let mut best_new_idx = None;
-        let mut best_score = 0.0;
+    // dp[i][j] stores the maximum cumulative similarity score for a sequential alignment
+    let mut dp = vec![vec![0.0f32; m + 1]; n + 1];
+    // backtrack stores (prev_i, prev_j, matched)
+    let mut backtrack = vec![vec![(0, 0, false); m + 1]; n + 1];
 
-        for (new_idx, _new_art) in new_articles.iter().enumerate() {
-            if used_new[new_idx] {
-                continue;
+    for i in 1..=n {
+        for j in 1..=m {
+            let score = similarity_matrix[i-1][j-1].composite;
+
+            // Prefer sequential match if it's strong enough
+            // Using a more lenient threshold for sequential matches (70% of global threshold) to catch renumbered items
+            if score >= (threshold * 0.7).max(0.3) {
+                let match_score = dp[i-1][j-1] + score;
+                if match_score > dp[i-1][j] && match_score > dp[i][j-1] {
+                    dp[i][j] = match_score;
+                    backtrack[i][j] = (i-1, j-1, true);
+                    continue;
+                }
             }
 
+            // Otherwise skip either side
+            if dp[i-1][j] >= dp[i][j-1] {
+                dp[i][j] = dp[i-1][j];
+                backtrack[i][j] = (i-1, j, false);
+            } else {
+                dp[i][j] = dp[i][j-1];
+                backtrack[i][j] = (i, j-1, false);
+            }
+        }
+    }
+
+    // Trace back to find matches
+    let mut curr_i = n;
+    let mut curr_j = m;
+    while curr_i > 0 && curr_j > 0 {
+        let (pi, pj, matched) = backtrack[curr_i][curr_j];
+        if matched {
+            let old_idx = curr_i - 1;
+            let new_idx = curr_j - 1;
+
+            if !used_old[old_idx] && !used_new[new_idx] {
+                let old_art = &old_articles[old_idx];
+                let new_art = &new_articles[new_idx];
+                let score = similarity_matrix[old_idx][new_idx].composite;
+
+                let change_type = if old_art.node_type == NodeType::Preamble || new_art.node_type == NodeType::Preamble {
+                    ArticleChangeType::Preamble
+                } else if score >= EXACT_MATCH_THRESHOLD && old_art.number == new_art.number {
+                    ArticleChangeType::Unchanged
+                } else if old_art.number == new_art.number {
+                    ArticleChangeType::Modified
+                } else if score >= 0.85 {
+                    ArticleChangeType::Renumbered
+                } else {
+                    ArticleChangeType::Moved
+                };
+
+                let mut tags = Vec::new();
+                match change_type {
+                    ArticleChangeType::Modified => tags.push("modified".to_string()),
+                    ArticleChangeType::Renumbered => tags.push("renumbered".to_string()),
+                    ArticleChangeType::Moved => tags.push("moved".to_string()),
+                    ArticleChangeType::Preamble => tags.push("preamble".to_string()),
+                    _ => {}
+                }
+
+                changes.push(ArticleChange {
+                    change_type,
+                    old_article: Some(old_art.clone()),
+                    new_articles: Some(vec![new_art.clone()]),
+                    similarity: Some(score),
+                    details: None,
+                    tags,
+                });
+
+                used_old[old_idx] = true;
+                used_new[new_idx] = true;
+            }
+        }
+        curr_i = pi;
+        curr_j = pj;
+    }
+
+    // Secondary Pass: Non-sequential Greedy for remaining (Moved items that jumped out of order)
+    for (old_idx, old_art) in old_articles.iter().enumerate() {
+        if used_old[old_idx] { continue; }
+
+        let mut best_score = -1.0;
+        let mut best_new_idx = None;
+
+        for (new_idx, _new_art) in new_articles.iter().enumerate() {
+            if used_new[new_idx] { continue; }
             let score = similarity_matrix[old_idx][new_idx].composite;
-            // Use the dynamic threshold instead of hardcoded HIGH_SIMILARITY_THRESHOLD
-            if score > best_score && score >= threshold {
+            if score >= threshold && score > best_score {
                 best_score = score;
                 best_new_idx = Some(new_idx);
             }
@@ -187,52 +374,20 @@ fn find_one_to_one_matches(
 
         if let Some(new_idx) = best_new_idx {
             let new_art = &new_articles[new_idx];
-
-            // Determine change type
-            let change_type = if best_score >= EXACT_MATCH_THRESHOLD && old_art.number == new_art.number {
-                ArticleChangeType::Unchanged
-            } else if old_art.number == new_art.number {
+            let change_type = if old_art.number == new_art.number {
                 ArticleChangeType::Modified
-            } else if best_score >= 0.9 {
-                // High similarity but different number → Renumbered
-                ArticleChangeType::Renumbered
             } else {
-                // Content changed and number changed → Moved
                 ArticleChangeType::Moved
             };
 
-            let mut tags = Vec::new();
-            match change_type {
-                ArticleChangeType::Added => tags.push("added".to_string()),
-                ArticleChangeType::Deleted => tags.push("deleted".to_string()),
-                ArticleChangeType::Modified => tags.push("modified".to_string()),
-                ArticleChangeType::Renumbered => tags.push("renumbered".to_string()),
-                ArticleChangeType::Moved => tags.push("moved".to_string()),
-                ArticleChangeType::Split => tags.push("split".to_string()),
-                ArticleChangeType::Merged => tags.push("merged".to_string()),
-                ArticleChangeType::Unchanged => {},
-            }
-
-            // Add secondary tags
-            if change_type == ArticleChangeType::Renumbered || change_type == ArticleChangeType::Moved {
-                 if best_score < EXACT_MATCH_THRESHOLD {
-                     tags.push("modified".to_string());
-                 }
-            }
-            // Tag preamble specifically
-            if new_art.number == "0" || new_art.title.as_deref() == Some("序言/目录") {
-                tags.push("preamble".to_string());
-            }
-
             changes.push(ArticleChange {
-                change_type: change_type.clone(),
+                change_type,
                 old_article: Some(old_art.clone()),
                 new_articles: Some(vec![new_art.clone()]),
                 similarity: Some(best_score),
                 details: None,
-                tags,
+                tags: vec!["moved".to_string()],
             });
-
             used_old[old_idx] = true;
             used_new[new_idx] = true;
         }
@@ -425,9 +580,10 @@ fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, p
         if node.number != "root" {
             list.push(ArticleInfo {
                 number: node.number.clone(),
-                content: node.content.clone(),
+                content: get_all_content(node),
                 title: node.title.clone(),
                 start_line: node.start_line,
+                node_type: node.node_type.clone(), // Set the node type
                 parents: parent_stack.to_vec(),
             });
         }
@@ -451,4 +607,30 @@ fn collect_articles_recursive(node: &ArticleNode, list: &mut Vec<ArticleInfo>, p
     for child in &node.children {
         collect_articles_recursive(child, list, &current_stack);
     }
+}
+
+/// Helper to gather content from a node and all its children (clauses, items)
+fn get_all_content(node: &ArticleNode) -> String {
+    let mut result = node.content.clone();
+
+    // For articles, we want to maintain some separation if content exists
+    for child in &node.children {
+        let child_content = get_all_content(child);
+        if !child_content.is_empty() {
+            if !result.is_empty() && !result.ends_with('\n') {
+                result.push('\n');
+            }
+            // Add a small indent or markers for clauses/items if they aren't already there?
+            // Actually, the parser already includes the (一) or 1. markers in child.content if applicable.
+            // But we might need standard indentation for better structure view.
+            if child.node_type == NodeType::Clause || child.node_type == NodeType::Item {
+                // If it doesn't already look like it has indentation, add it
+                if !child_content.starts_with(' ') && !child_content.starts_with('\u{3000}') {
+                    result.push_str("\u{3000}\u{3000}");
+                }
+            }
+            result.push_str(&child_content);
+        }
+    }
+    result
 }

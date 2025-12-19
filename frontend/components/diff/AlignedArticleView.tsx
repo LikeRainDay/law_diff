@@ -10,7 +10,8 @@ import {
   GitMerge,
   GitBranch,
   ArrowRightLeft,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 
 interface AlignedArticleViewProps {
@@ -154,7 +155,9 @@ function getTranslation(key: string, lang: 'zh' | 'en'): string {
       'split': '条款拆分: 原条款已被拆分为多个新条款',
       'merged': '条款合并: 多个原条款已合并为此条款',
       'renumbered': '编号变更: 内容相似度较高，但编号改变',
-      'moved': '位置移动: 条款位置发生显著变化'
+      'moved': '位置移动: 条款位置发生显著变化',
+      'replaced': '编号重用: 旧条文已删除，该编号被新内容占用',
+      'preamble': '序言/目录: 法律文件的非条文部分'
     },
     'en': {
       'filter': 'Filter',
@@ -167,7 +170,9 @@ function getTranslation(key: string, lang: 'zh' | 'en'): string {
       'split': 'Split: Original article split into multiple',
       'merged': 'Merged: Multiple articles merged into this one',
       'renumbered': 'Renumbered: Content similar but number changed',
-      'moved': 'Moved: Position changed significantly'
+      'moved': 'Moved: Position changed significantly',
+      'replaced': 'Reassigned: Old article deleted, number reused for new content',
+      'preamble': 'Preamble: Non-article content / Metadata'
     }
   };
   return dict[lang]?.[key] || key;
@@ -185,6 +190,7 @@ function getTagLabel(tag: string, lang: 'zh' | 'en'): string {
     moved: "移动",
     unchanged: "无变更",
     preamble: "序言/目录",
+    replaced: "删除并调整",
   };
   return labels[tag] || tag;
 }
@@ -266,12 +272,14 @@ function AlignedArticleRow({ change, language }: { change: ArticleChange, langua
       </div>
 
       {/* Explainer for complex changes */}
-      {(isSplit || isMerged || isMoved || isRenumbered) && (
+      {(isSplit || isMerged || isMoved || isRenumbered || type === 'replaced' || type === 'preamble') && (
         <div className="mt-4 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground flex items-center gap-4">
            {isSplit && <><GitBranch className="w-4 h-4" /> <span>{t('split')}</span></>}
            {isMerged && <><GitMerge className="w-4 h-4" /> <span>{t('merged')}</span></>}
            {isRenumbered && <><ArrowRight className="w-4 h-4" /> <span>{t('renumbered')}</span></>}
            {isMoved && <><ArrowRightLeft className="w-4 h-4" /> <span>{t('moved')}</span></>}
+           {type === 'replaced' && <><AlertCircle className="w-4 h-4 text-amber-500" /> <span>{t('replaced')}</span></>}
+           {type === 'preamble' && <><Info className="w-4 h-4 text-teal-500" /> <span>{t('preamble')}</span></>}
         </div>
       )}
 
@@ -298,6 +306,7 @@ function ChangeTypeBadge({ type, language }: { type: string, language: 'zh' | 'e
     moved: "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300 border-pink-200 dark:border-pink-800",
     unchanged: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700",
     preamble: "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300 border-teal-200 dark:border-teal-800",
+    replaced: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border-orange-200 dark:border-orange-800",
   };
 
   const style = styles[normalizedType] || "bg-slate-100 text-slate-600";
@@ -321,6 +330,7 @@ function TagDot({ tag }: { tag: string }) {
         moved: "bg-pink-500",
         unchanged: "bg-slate-500",
         preamble: "bg-teal-500",
+        replaced: "bg-orange-500",
     };
     return <span className={cn("h-2 w-2 rounded-full", colors[tag] || "bg-slate-400")} />;
 }

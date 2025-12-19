@@ -11,8 +11,8 @@ use crate::models::{Change, ChangeType, DiffResult, DiffStats, Entity};
 
 /// Compare two texts and generate diff result
 pub fn compare_texts(old_text: &str, new_text: &str, entities: Vec<Entity>) -> DiffResult {
-    // Use similar crate for word-level diff
-    let diff = TextDiff::from_words(old_text, new_text);
+    // Use similar crate for line-level diff for better legal text stability
+    let diff = TextDiff::from_lines(old_text, new_text);
 
     let mut changes = Vec::new();
     let mut old_line = 1;
@@ -146,12 +146,12 @@ mod tests {
 
     #[test]
     fn test_basic_diff() {
-        let old = "第一条 测试";
-        let new = "第一条 修改测试";
+        let old = "第一条 测试\n第二条 无关";
+        let new = "第一条 修改测试\n第二条 无关";
         let result = compare_texts(old, new, vec![]);
 
-        assert!(result.similarity > 0.5);
-        assert!(result.stats.additions > 0 || result.stats.modifications > 0);
+        assert!(result.similarity >= 0.5);
+        assert!(result.stats.modifications > 0 || result.stats.additions > 0);
     }
 
     #[test]

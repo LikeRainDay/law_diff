@@ -36,7 +36,7 @@ interface DiffLineProps {
   index: number;
 }
 
-function DiffLine({ change, index }: DiffLineProps) {
+const DiffLine = React.memo(({ change, index }: DiffLineProps) => {
   const getLineStyle = () => {
     switch (change.type) {
       case 'add':
@@ -77,10 +77,7 @@ function DiffLine({ change, index }: DiffLineProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.2, delay: index * 0.01 }}
+    <div
       className={cn('flex transition-colors duration-150', getLineStyle())}
       id={`change-${index}`}
     >
@@ -114,6 +111,8 @@ function DiffLine({ change, index }: DiffLineProps) {
           </span>
         )}
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
+
+DiffLine.displayName = 'DiffLine';

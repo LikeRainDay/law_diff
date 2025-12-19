@@ -12,6 +12,8 @@ pub enum ArticleChangeType {
     Moved,      // Position changed significantly
     Added,
     Deleted,
+    Replaced,   // Number reused but content is completely different
+    Preamble,   // Metadata/Intro/TOC
 }
 
 /// Minimal info about an article for diff reference
@@ -22,6 +24,7 @@ pub struct ArticleInfo {
     pub content: String,
     pub title: Option<String>,
     pub start_line: usize,
+    pub node_type: NodeType, // NEW
     #[serde(default)]
     pub parents: Vec<String>, // Hierarchy context (e.g. ["第一章 总则"])
 }

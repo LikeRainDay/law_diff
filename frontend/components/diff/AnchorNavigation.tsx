@@ -56,7 +56,7 @@ export default function AnchorNavigation({ changes, articleChanges, viewMode, cl
 
 
 // --- Git Line View (Refined) ---
-function GitLineNavigation({
+const GitLineNavigation = React.memo(({
   changes,
   className,
   viewMode,
@@ -66,8 +66,10 @@ function GitLineNavigation({
   className?: string,
   viewMode: ViewMode,
   language?: 'zh' | 'en'
-}) {
-  const significantChanges = changes.filter(c => c.type !== 'unchanged');
+}) => {
+  const significantChanges = React.useMemo(() =>
+    changes.filter(c => c.type !== 'unchanged'),
+  [changes]);
 
   const scrollToChange = (index: number) => {
     // If sidebyside, we might need a different scrolling logic or target
@@ -100,7 +102,7 @@ function GitLineNavigation({
       {/* Modern Mini-map / Progress Strip */}
       <div className="px-4 py-2 border-b border-border bg-background/50">
          <div className="flex gap-0.5 h-7 rounded-lg bg-muted/50 p-1 overflow-hidden ring-1 ring-border">
-           {changes.map((change, index) => {
+           {changes.slice(0, 1000).map((change, index) => { // Render limit for performance
              if (change.type === 'unchanged') return <div key={index} className="flex-1" style={{ minWidth: '1px' }} />;
              return (
                <button
@@ -126,7 +128,7 @@ function GitLineNavigation({
              <FileText className="w-8 h-8" />
              <span className="text-xs">{language === 'zh' ? '暂无显著变更' : 'No major changes'}</span>
            </div>
-         ) : significantChanges.map((change, idx) => (
+         ) : significantChanges.slice(0, 200).map((change, idx) => ( // Render limit for sidebar list
             <motion.div
                  key={idx}
                  whileHover={{ x: 4 }}
@@ -156,15 +158,20 @@ function GitLineNavigation({
                </div>
             </motion.div>
          ))}
+         {significantChanges.length > 200 && (
+           <div className="text-center py-2 text-[10px] text-muted-foreground italic">
+             ... {significantChanges.length - 200} more changes (Check map above)
+           </div>
+         )}
       </div>
     </div>
   );
-}
+});
+
+GitLineNavigation.displayName = 'GitLineNavigation';
 
 // --- Structure Stripe View ---
-function StructureTreeNavigation({ articleChanges, className, language = 'zh' }: { articleChanges: ArticleChange[], className?: string, language?: 'zh' | 'en' }) {
-  const visibleChanges = articleChanges.filter(c => c.type !== 'unchanged');
-
+const StructureTreeNavigation = React.memo(({ articleChanges, className, language = 'zh' }: { articleChanges: ArticleChange[], className?: string, language?: 'zh' | 'en' }) => {
   const scrollToArticle = (index: number) => {
     const element = document.getElementById(`article-row-${index}`);
     if (element) {
@@ -176,24 +183,27 @@ function StructureTreeNavigation({ articleChanges, className, language = 'zh' }:
 
   const t_title = language === 'zh' ? '结构化视图' : 'Structure View';
 
-  // Group by Parent (Chapter) for alignment with original indices
-  const groupedChanges: { title: string, items: { change: ArticleChange, originalIndex: number }[] }[] = [];
-  let currentGroup: { title: string, items: { change: ArticleChange, originalIndex: number }[] } | null = null;
+  // Group by Parent (Chapter)
+  const groupedChanges = React.useMemo(() => {
+    const groups: { title: string, items: { change: ArticleChange, originalIndex: number }[] }[] = [];
+    let currentGroup: { title: string, items: { change: ArticleChange, originalIndex: number }[] } | null = null;
 
-  articleChanges.forEach((change, originalIndex) => {
-      if (change.type === 'unchanged') return;
+    articleChanges.forEach((change, originalIndex) => {
+        if (change.type === 'unchanged') return;
 
-      const parents = change.newArticles?.[0]?.parents || change.oldArticle?.parents || [];
-      const title = parents[parents.length - 1] || (language === 'zh' ? "其他章节" : "Other Chapters");
+        const parents = change.newArticles?.[0]?.parents || change.oldArticle?.parents || [];
+        const title = parents[parents.length - 1] || (language === 'zh' ? "其他章节" : "Other Chapters");
 
-      if (!currentGroup || currentGroup.title !== title) {
-          if (currentGroup) groupedChanges.push(currentGroup);
-          currentGroup = { title, items: [{ change, originalIndex }] };
-      } else {
-          currentGroup.items.push({ change, originalIndex });
-      }
-  });
-  if (currentGroup) groupedChanges.push(currentGroup);
+        if (!currentGroup || currentGroup.title !== title) {
+            if (currentGroup) groups.push(currentGroup);
+            currentGroup = { title, items: [{ change, originalIndex }] };
+        } else {
+            currentGroup.items.push({ change, originalIndex });
+        }
+    });
+    if (currentGroup) groups.push(currentGroup);
+    return groups;
+  }, [articleChanges, language]);
 
   return (
     <div className={cn(
@@ -279,4 +289,6 @@ function StructureTreeNavigation({ articleChanges, className, language = 'zh' }:
       </div>
     </div>
   );
-}
+});
+
+StructureTreeNavigation.displayName = 'StructureTreeNavigation';

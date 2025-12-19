@@ -13,11 +13,15 @@ pub fn normalize_legal_text(text: &str) -> String {
     let major_re = Regex::new(r"(\s*)(第[一二三四五六七八九十百\d]+[编章节])").unwrap();
     text = major_re.replace_all(&text, "\n$2").to_string();
 
-    // Stage 1.1: Articles (条) - only force newline if they look like a NEW article
-    // This means they follow punctuation or are clearly separate.
-    // We match Article that follows 。！？ or another newline
-    let article_re = Regex::new(r"([。！？])\s*(第[一二三四五六七八九十百\d]+条)").unwrap();
+    // Stage 1.1: Articles (条) - Force newline for "第X条" if it follows a boundary.
+    // Boundary includes: 。！？； ) 】 or start of line, or even just space after other text.
+    // We avoid matching in the middle of a string like "根据第...条" by checking what precedes it.
+    let article_re = Regex::new(r"([。！？；\)）】\s])(第[一二三四五六七八九十百\d]+条)").unwrap();
     text = article_re.replace_all(&text, "$1\n$2").to_string();
+
+    // Also handle cases where text starts with an article but might have junk before it
+    let start_article_re = Regex::new(r"^(\s*)(第[一二三四五六七八九十百\d]+条)").unwrap();
+    text = start_article_re.replace_all(&text, "$2").to_string();
 
     // Cleanup: remove empty lines and trim each line
     let mut result = String::new();

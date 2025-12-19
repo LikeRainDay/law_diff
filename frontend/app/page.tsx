@@ -27,7 +27,9 @@ import AnchorNavigation from '@/components/diff/AnchorNavigation';
 import EntityHighlight from '@/components/legal/EntityHighlight';
 import { AlignedArticleView } from '@/components/diff/AlignedArticleView';
 import { ComparisonSettings } from '@/components/diff/ComparisonSettings';
+import { DiffResultViewer } from '@/components/diff/DiffResultViewer';
 import { cn } from '@/lib/utils';
+import { useCallback } from 'react';
 
 export default function Home() {
   const [oldText, setOldText] = useState('');
@@ -43,7 +45,7 @@ export default function Home() {
   const [showIdentical, setShowIdentical] = useState(true);
 
   // Localization Helper
-  const t = (key: string) => {
+  const t = useCallback((key: string) => {
     const dict: Record<string, Record<string, string>> = {
       zh: {
         title: '法律条文智能比对',
@@ -95,7 +97,7 @@ export default function Home() {
       }
     };
     return dict[language][key] || key;
-  };
+  }, [language]);
 
   const handleCompare = async () => {
     if (!oldText && !newText) return;
@@ -303,174 +305,19 @@ export default function Home() {
         {/* Results Area */}
         <AnimatePresence mode="wait">
           {diffResult && (
-            <motion.div
-              id="results-section" // Added ID
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* Toolbar */}
-              <div className="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 sticky top-4 z-40 bg-background/80 backdrop-blur-md shadow-lg border border-border/50">
-                <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                  <Button
-                    variant={viewMode === 'git' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('git')}
-                    className="gap-2"
-                  >
-                    <GitCommit className="w-4 h-4" /> {t('git_mode')}
-                  </Button>
-                  <Button
-                    variant={viewMode === 'sidebyside' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('sidebyside')}
-                    className="gap-2"
-                  >
-                    <LayoutTemplate className="w-4 h-4" /> {t('split_view')}
-                  </Button>
-                  <Button
-                    variant={viewMode === 'article-structure' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('article-structure')}
-                    className="gap-2 relative"
-                  >
-                    <FileDiff className="w-4 h-4" />
-                    {t('structure_view')}
-                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-                    </span>
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <ComparisonSettings
-                     threshold={alignThreshold}
-                     onThresholdChange={setAlignThreshold}
-                     formatText={formatText}
-                     onFormatTextChange={setFormatText}
-                     showIdentical={showIdentical}
-                     onShowIdenticalChange={setShowIdentical}
-                  />
-                  <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold border border-primary/20">
-                     <CheckCircle2 className="w-4 h-4" />
-                     {t('check_similarity')} {(diffResult.similarity * 100).toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-
-               <div className="grid lg:grid-cols-12 gap-6">
-                 {/* Main Viewer */}
-                 <div className="lg:col-span-9 order-2 lg:order-1">
-                   <Card className="overflow-hidden min-h-[850px] bg-card/40 border-border/40 shadow-xl">
-                     <CardContent className="p-0">
-                       {viewMode === 'git' && (
-                         <div className="p-4">
-                           <GitDiffView changes={diffResult.changes} />
-                         </div>
-                       )}
-
-                       {viewMode === 'sidebyside' && (
-                         <div className="p-4">
-                           <SideBySideView changes={diffResult.changes} />
-                         </div>
-                       )}
-
-                       {viewMode === 'article-structure' && (
-                          <div className="p-6">
-                            {diffResult.articleChanges ? (
-                              <AlignedArticleView
-                                changes={diffResult.articleChanges}
-                                showIdentical={showIdentical}
-                                language={language}
-                              />
-                            ) : (
-                               <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground gap-4">
-                                  <AlertCircle className="w-12 h-12 opacity-20" />
-                                  <p>{t('no_structure_data')}</p>
-                               </div>
-                            )}
-                          </div>
-                       )}
-                     </CardContent>
-                   </Card>
-                 </div>
-
-                 {/* Sidebar */}
-                 <div className="lg:col-span-3 order-1 lg:order-2 space-y-6">
-                   {/* Mini Map */}
-                   <Card className="glass-card shadow-md">
-                      <CardHeader className="py-3 px-4 border-b border-border/10">
-                        <CardTitle className="text-sm font-medium">{t('nav_title')}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <AnchorNavigation
-                          changes={diffResult.changes}
-                          articleChanges={diffResult.articleChanges}
-                          viewMode={viewMode}
-                          className="max-h-[600px]"
-                          language={language}
-                        />
-                      </CardContent>
-                   </Card>
-
-                   {/* Stats */}
-                   <div className="grid grid-cols-2 gap-3">
-                      <Card className="bg-green-500/5 border-green-500/20">
-                         <div className="p-3 text-center">
-                           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                             {diffResult.stats.additions}
-                           </div>
-                           <div className="text-xs text-muted-foreground">{t('stats_added')}</div>
-                         </div>
-                      </Card>
-                      <Card className="bg-red-500/5 border-red-500/20">
-                         <div className="p-3 text-center">
-                           <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                             {diffResult.stats.deletions}
-                           </div>
-                           <div className="text-xs text-muted-foreground">{t('stats_deleted')}</div>
-                         </div>
-                      </Card>
-                      <Card className="bg-amber-500/5 border-amber-500/20">
-                         <div className="p-3 text-center">
-                           <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                             {diffResult.stats.modifications}
-                           </div>
-                           <div className="text-xs text-muted-foreground">{t('stats_modified')}</div>
-                         </div>
-                      </Card>
-                      <Card className="bg-blue-500/5 border-blue-500/20">
-                         <div className="p-3 text-center">
-                           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                             {diffResult.stats.unchanged}
-                           </div>
-                           <div className="text-xs text-muted-foreground">{t('stats_unchanged')}</div>
-                         </div>
-                      </Card>
-                   </div>
-
-                   {/* Entities */}
-                   <Card className="glass-card overflow-hidden">
-                     <CardHeader className="py-3 px-4 border-b border-border/10">
-                       <CardTitle className="text-sm font-medium">{t('entities_title')}</CardTitle>
-                     </CardHeader>
-                     <CardContent className="p-0 max-h-[300px] overflow-y-auto custom-scrollbar">
-                        <div className="divide-y divide-border/20">
-<EntityHighlight entities={diffResult.entities} />
-                          {diffResult.entities.length === 0 && (
-                            <div className="p-4 text-center text-xs text-muted-foreground">
-                              {t('no_entities')}
-                            </div>
-                          )}
-                        </div>
-                     </CardContent>
-                   </Card>
-
-                 </div>
-               </div>
-            </motion.div>
+            <DiffResultViewer
+               diffResult={diffResult}
+               viewMode={viewMode}
+               setViewMode={setViewMode}
+               language={language}
+               alignThreshold={alignThreshold}
+               setAlignThreshold={setAlignThreshold}
+               formatText={formatText}
+               setFormatText={setFormatText}
+               showIdentical={showIdentical}
+               setShowIdentical={setShowIdentical}
+               t={t}
+            />
           )}
         </AnimatePresence>
 
