@@ -3,7 +3,7 @@
     root * /usr/share/caddy
 
     # Forward API requests to the Rust backend
-    handle_path /api/* {
+    handle /api/* {
         reverse_proxy 127.0.0.1:8000
     }
 
