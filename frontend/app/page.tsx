@@ -230,7 +230,7 @@ export default function Home() {
   const useExample = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/examples');
+      const response = await fetch('/api/examples');
       if (!response.ok) throw new Error('Failed to fetch examples');
 
       const data = await response.json();

@@ -4,7 +4,7 @@ import { ArticleChange, ArticleChangeType } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Check, X, MoveHorizontal, ListPlus, ListX, Split, Merge } from 'lucide-react';
+import { Check, X, MoveHorizontal, ListPlus, ListX, Split, Merge, Sparkles } from 'lucide-react';
 
 interface ArticleChangeViewProps {
   changes: ArticleChange[];
@@ -147,7 +147,7 @@ function ModifiedArticle({
 }
 
 function getTypeConfig(type: ArticleChangeType) {
-  const configs = {
+  const configs: Record<string, any> = {
     unchanged: {
       label: '未变更',
       badgeVariant: 'outline',
@@ -158,7 +158,7 @@ function getTypeConfig(type: ArticleChangeType) {
       label: '内容修改',
       badgeVariant: 'info',
       borderColor: 'border-blue-500/30',
-      icon: <X className="w-3 h-3 rotate-45" /> // Using a styled icon
+      icon: <X className="w-3 h-3 rotate-45" />
     },
     renumbered: {
       label: '条号变更',
@@ -195,6 +195,18 @@ function getTypeConfig(type: ArticleChangeType) {
       badgeVariant: 'destructive',
       borderColor: 'border-red-500/30',
       icon: <ListX className="w-3 h-3" />
+    },
+    replaced: {
+      label: '内容替换',
+      badgeVariant: 'info',
+      borderColor: 'border-orange-500/30',
+      icon: <Check className="w-3 h-3" />
+    },
+    preamble: {
+      label: '规范导语',
+      badgeVariant: 'outline',
+      borderColor: 'border-border/40',
+      icon: <Sparkles className="w-3 h-3" />
     }
   };
 

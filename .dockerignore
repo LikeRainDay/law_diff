@@ -9,6 +9,5 @@ frontend/.next
 frontend/out
 .DS_Store
 Dockerfile
-Caddyfile
 README.md
 docs
