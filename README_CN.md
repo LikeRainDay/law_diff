@@ -4,6 +4,8 @@
 
 [English Version](./README.md)
 
+**🌐 [在线演示](https://law-diff.zeabur.app/)** - 无需安装，立即体验！
+
 ---
 
 ## ✨ 核心特性

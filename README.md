@@ -8,6 +8,8 @@ An intelligent, high-performance tool for comparing legal documents and analyzin
 
 [中文版本 (Chinese Version)](./README_CN.md)
 
+**🌐 [Live Demo](https://law-diff.zeabur.app/)** - Try it out without installation!
+
 ---
 
 ## ✨ Key Features
