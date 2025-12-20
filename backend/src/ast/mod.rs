@@ -60,8 +60,37 @@ pub fn parse_article(text: &str) -> ArticleNode {
     let mut seen_markers = HashSet::new();
 
     let is_likely_toc_entry = |text: &str| -> bool {
-        text.contains("...") || text.contains("···") || text.contains("..") ||
-        text.trim_end().chars().last().map(|c| c.is_ascii_digit()).unwrap_or(false)
+        let t = text.trim();
+        if t.is_empty() { return false; }
+
+        // Classic markers: dots, ellipsis, trailing page numbers
+        if t.contains("...") || t.contains("···") || t.contains("..") ||
+           t.chars().last().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            return true;
+        }
+
+        // Heuristic: Indented structural elements in the preamble are almost always TOC entries
+        let is_indented = text.starts_with(' ') || text.starts_with('\u{3000}') || text.starts_with('\t');
+        let is_structural = get_chapter_pattern().is_match(t) ||
+                           get_section_pattern().is_match(t) ||
+                           get_part_pattern().is_match(t) ||
+                           get_article_pattern().is_match(t);
+
+        if is_indented && is_structural {
+            return true;
+        }
+
+        // High-level structural markers (non-article) that are short and appear right after "目录"
+        // Articles are usually not in TOC unless they have dots/page numbers or are indented.
+        let is_high_structural = get_chapter_pattern().is_match(t) ||
+                                get_section_pattern().is_match(t) ||
+                                get_part_pattern().is_match(t);
+
+        if is_high_structural && t.chars().count() < 30 {
+            return true;
+        }
+
+        false
     };
 
     for (line_idx, line) in lines.iter().enumerate() {
@@ -69,7 +98,6 @@ pub fn parse_article(text: &str) -> ArticleNode {
         if trimmed.is_empty() {
             continue;
         }
-
 
         // TOC Detection
         if !structure_started && (trimmed.contains("目录") || trimmed == "目 录") {
@@ -79,43 +107,49 @@ pub fn parse_article(text: &str) -> ArticleNode {
         if let Some(caps) = get_article_pattern().captures(trimmed) {
             let after_marker = caps.get(3).map(|m| m.as_str()).unwrap_or("");
             if !after_marker.starts_with("规定") && !after_marker.starts_with("之") {
-                // Inline check_preamble
-                if !structure_started && !preamble_buffer.is_empty() {
-                    root.children.push(ArticleNode {
-                        node_type: NodeType::Preamble,
-                        number: "0".into(),
-                        title: Some("序言/目录".into()),
-                        content: preamble_buffer.join("\n").into(),
+                // If we are in TOC, only breakout if this isn't a likely TOC entry
+                let should_breakout = if in_toc { !is_likely_toc_entry(line) } else { true };
+
+                if should_breakout {
+                    // Inline check_preamble
+                    if !structure_started && !preamble_buffer.is_empty() {
+                        root.children.push(ArticleNode {
+                            node_type: NodeType::Preamble,
+                            number: "0".into(),
+                            title: Some("序言/目录".into()),
+                            content: preamble_buffer.join("\n").into(),
+                            children: Vec::new(),
+                            start_line: 1,
+                        });
+                        preamble_buffer.clear();
+                    }
+                    structure_started = true;
+                    in_toc = false;
+
+                    if let Some(clause) = current_clause.take() {
+                        if let Some(ref mut article) = current_article { article.children.push(clause); }
+                    }
+                    if let Some(article) = current_article.take() {
+                        if let Some(ref mut section) = current_section { section.children.push(article); }
+                        else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
+                        else if let Some(ref mut part) = current_part { part.children.push(article); }
+                        else { root.children.push(article); }
+                    }
+
+                    current_article = Some(ArticleNode {
+                        node_type: NodeType::Article,
+                        number: caps.get(1).unwrap().as_str().into(),
+                        title: None,
+                        content: after_marker.trim().into(),
                         children: Vec::new(),
-                        start_line: 1,
+                        start_line: line_idx + 1,
                     });
-                    preamble_buffer.clear();
+                    current_clause = None;
+                    continue;
                 }
-                structure_started = true;
-                in_toc = false;
-
-                if let Some(clause) = current_clause.take() {
-                    if let Some(ref mut article) = current_article { article.children.push(clause); }
-                }
-                if let Some(article) = current_article.take() {
-                    if let Some(ref mut section) = current_section { section.children.push(article); }
-                    else if let Some(ref mut chapter) = current_chapter { chapter.children.push(article); }
-                    else if let Some(ref mut part) = current_part { part.children.push(article); }
-                    else { root.children.push(article); }
-                }
-
-                current_article = Some(ArticleNode {
-                    node_type: NodeType::Article,
-                    number: caps.get(1).unwrap().as_str().into(),
-                    title: None,
-                    content: after_marker.trim().into(),
-                    children: Vec::new(),
-                    start_line: line_idx + 1,
-                });
-                current_clause = None;
-                continue;
             }
         }
+
         // Structural breakout check for TOC
         if in_toc {
             let is_structural = get_chapter_pattern().is_match(trimmed) ||
@@ -131,7 +165,13 @@ pub fn parse_article(text: &str) -> ArticleNode {
                 } else { String::new() };
 
                 if !marker.is_empty() {
-                    if seen_markers.contains(&marker) || !is_likely_toc_entry(trimmed) {
+                    // Break out of TOC if we see a repeat of a high-level marker (Chapter/Part)
+                    // OR if it's clearly not a TOC line (e.g. has body content or lacks TOC characteristics)
+                    let is_high_level = marker.starts_with("CH_") || marker.starts_with("PART_");
+                    let is_repeat = is_high_level && seen_markers.contains(&marker);
+                    let clearly_not_toc = !is_likely_toc_entry(line);
+
+                    if is_repeat || clearly_not_toc {
                         in_toc = false;
                     } else {
                         seen_markers.insert(marker);
@@ -218,7 +258,7 @@ pub fn parse_article(text: &str) -> ArticleNode {
                         if let Some(ref mut chapter) = current_chapter { chapter.children.push(section); }
                         else { root.children.push(section); }
                     }
-                    if let Some(mut chapter) = current_chapter.take() {
+                    if let Some(chapter) = current_chapter.take() {
                          if let Some(ref mut part) = current_part { part.children.push(chapter); }
                          else { root.children.push(chapter); }
                     }
@@ -378,6 +418,8 @@ pub fn parse_article(text: &str) -> ArticleNode {
     if let Some(section) = current_section {
         if let Some(ref mut chapter) = current_chapter {
             chapter.children.push(section);
+        } else {
+            root.children.push(section);
         }
     }
 
@@ -391,6 +433,18 @@ pub fn parse_article(text: &str) -> ArticleNode {
 
     if let Some(part) = current_part {
         root.children.push(part);
+    }
+
+    // If we finished and still have preamble content that was never flushed
+    if !preamble_buffer.is_empty() {
+        root.children.insert(0, ArticleNode {
+            node_type: NodeType::Preamble,
+            number: "0".into(),
+            title: Some("序言/目录".into()),
+            content: preamble_buffer.join("\n").into(),
+            children: Vec::new(),
+            start_line: 1,
+        });
     }
 
     prune_empty_nodes(&mut root);
@@ -427,9 +481,6 @@ fn prune_empty_nodes(node: &mut ArticleNode) {
 }
 
 #[cfg(test)]
-mod repro_issue;
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::nlp::formatter::normalize_legal_text;
@@ -441,7 +492,7 @@ mod tests {
 
         assert_eq!(ast.children.len(), 1);
         assert_eq!(ast.children[0].node_type, NodeType::Article);
-        assert_eq!(ast.children[0].number, "一");
+        assert_eq!(ast.children[0].number.as_ref(), "一");
     }
 
     #[test]
@@ -480,12 +531,12 @@ mod tests {
 
         let first_node = &ast.children[0];
         assert_eq!(first_node.node_type, NodeType::Chapter, "First node should be Chapter");
-        assert_eq!(first_node.number, "一", "Chapter number should be 1");
+        assert_eq!(first_node.number.as_ref(), "一", "Chapter number should be 1");
 
         assert!(!first_node.children.is_empty(), "Chapter should have children");
         let article = &first_node.children[0];
         assert_eq!(article.node_type, NodeType::Article, "Chapter child should be Article");
-        assert_eq!(article.number, "一", "Article number should be 1");
+        assert_eq!(article.number.as_ref(), "一", "Article number should be 1");
     }
 
     #[test]
@@ -501,7 +552,7 @@ mod tests {
 
         let article = &chapter.children[0];
         assert_eq!(article.node_type, NodeType::Article);
-        assert_eq!(article.number, "一");
+        assert_eq!(article.number.as_ref(), "一");
         assert!(article.content.contains("【立法目的】"), "Content should contain title");
     }
     #[test]
@@ -516,7 +567,7 @@ mod tests {
         let ast = parse_article(&normalized);
         let article = &ast.children[0];
 
-        assert_eq!(article.number, "四");
+        assert_eq!(article.number.as_ref(), "四");
         assert_eq!(article.children.len(), 0, "Inline clauses should not become child nodes");
         assert!(article.content.contains("（一）义务一"), "Content should be preserved inline");
     }
@@ -538,7 +589,7 @@ mod tests {
         assert!(art1.children[1].content.contains("（二）"), "Marker should be preserved");
 
         let art2 = &ast.children[1];
-        assert_eq!(art2.number, "二");
+        assert_eq!(art2.number.as_ref(), "二");
     }
 
     #[test]
@@ -557,11 +608,11 @@ mod tests {
         // New 3: Modified (Matched to Old 2)
 
         // Find match for Old 1
-        let match_old1 = changes.iter().find(|c| c.old_article.as_ref().map(|a| a.number.as_str()) == Some("一")).unwrap();
-        assert_eq!(match_old1.new_articles.as_ref().unwrap()[0].number, "二", "Old 1 should match New 2 due to similarity");
+        let match_old1 = changes.iter().find(|c| c.old_article.as_ref().map(|a| a.number.as_ref()) == Some("一")).unwrap();
+        assert_eq!(match_old1.new_articles.as_ref().unwrap()[0].number.as_ref(), "二", "Old 1 should match New 2 due to similarity");
 
-        let match_old2 = changes.iter().find(|c| c.old_article.as_ref().map(|a| a.number.as_str()) == Some("二")).unwrap();
-        assert_eq!(match_old2.new_articles.as_ref().unwrap()[0].number, "三", "Old 2 should match New 3 due to similarity");
+        let match_old2 = changes.iter().find(|c| c.old_article.as_ref().map(|a| a.number.as_ref()) == Some("二")).unwrap();
+        assert_eq!(match_old2.new_articles.as_ref().unwrap()[0].number.as_ref(), "三", "Old 2 should match New 3 due to similarity");
     }
 
     #[test]
@@ -572,8 +623,8 @@ mod tests {
 "#;
         let ast = parse_article(text);
         assert_eq!(ast.children.len(), 3);
-        assert_eq!(ast.children[1].number, "二百零一");
-        assert_eq!(ast.children[2].number, "二百零二");
+        assert_eq!(ast.children[1].number.as_ref(), "二百零一");
+        assert_eq!(ast.children[2].number.as_ref(), "二百零二");
     }
 
     #[test]
@@ -591,7 +642,7 @@ mod tests {
         assert!(ast.children[0].content.contains("第二章"));
         assert!(ast.children[0].content.contains("（一）"));
         assert_eq!(ast.children[1].node_type, NodeType::Article);
-        assert_eq!(ast.children[1].number, "一");
+        assert_eq!(ast.children[1].number.as_ref(), "一");
     }
 
     #[test]
@@ -607,8 +658,8 @@ mod tests {
         assert_eq!(ast.children.len(), 2, "Should have Preamble and Chapter 1");
         assert_eq!(ast.children[0].node_type, NodeType::Preamble);
         assert_eq!(ast.children[1].node_type, NodeType::Chapter);
-        assert_eq!(ast.children[1].number, "一");
+        assert_eq!(ast.children[1].number.as_ref(), "一");
         assert_eq!(ast.children[1].children.len(), 1);
-        assert_eq!(ast.children[1].children[0].number, "一");
+        assert_eq!(ast.children[1].children[0].number.as_ref(), "一");
     }
 }

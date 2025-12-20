@@ -167,15 +167,15 @@ mod tests {
 
     #[test]
     fn test_jaccard_no_overlap() {
-        let set1: HashSet<String> = ["apple", "banana"].iter().map(|s| s.to_string()).collect();
-        let set2: HashSet<String> = ["cat", "dog"].iter().map(|s| s.to_string()).collect();
+        let set1: HashSet<Arc<str>> = ["apple", "banana"].iter().map(|s| Arc::from(*s)).collect();
+        let set2: HashSet<Arc<str>> = ["cat", "dog"].iter().map(|s| Arc::from(*s)).collect();
         assert_eq!(calculate_jaccard_similarity(&set1, &set2), 0.0);
     }
 
     #[test]
     fn test_jaccard_partial_overlap() {
-        let set1: HashSet<String> = ["应当", "建立", "制度"].iter().map(|s| s.to_string()).collect();
-        let set2: HashSet<String> = ["应当", "建立", "安全", "制度"].iter().map(|s| s.to_string()).collect();
+        let set1: HashSet<Arc<str>> = ["应当", "建立", "制度"].iter().map(|s| Arc::from(*s)).collect();
+        let set2: HashSet<Arc<str>> = ["应当", "建立", "安全", "制度"].iter().map(|s| Arc::from(*s)).collect();
         let score = calculate_jaccard_similarity(&set1, &set2);
         // Intersection: {应当, 建立, 制度} = 3
         // Union: {应当, 建立, 制度, 安全} = 4
@@ -206,10 +206,10 @@ mod tests {
         let text1 = "第五条 网络运营者应当建立安全管理制度";
         let text2 = "第五条 网络运营者应当建立管理制度";
 
-        let tokens1: HashSet<String> = ["网络", "运营者", "应当", "建立", "安全", "管理", "制度"]
-            .iter().map(|s| s.to_string()).collect();
-        let tokens2: HashSet<String> = ["网络", "运营者", "应当", "建立", "管理", "制度"]
-            .iter().map(|s| s.to_string()).collect();
+        let tokens1: HashSet<Arc<str>> = ["网络", "运营者", "应当", "建立", "安全", "管理", "制度"]
+            .iter().map(|s| Arc::from(*s)).collect();
+        let tokens2: HashSet<Arc<str>> = ["网络", "运营者", "应当", "建立", "管理", "制度"]
+            .iter().map(|s| Arc::from(*s)).collect();
 
         let score = calculate_composite_similarity(text1, text2, &tokens1, &tokens2);
 
