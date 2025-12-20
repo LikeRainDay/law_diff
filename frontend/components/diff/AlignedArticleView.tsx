@@ -118,12 +118,12 @@ export function AlignedArticleView({
   return (
     <div className="flex flex-col gap-8 font-sans text-foreground">
       {/* Premium Filter Control Panel */}
-      <div className="sticky top-0 z-30 flex flex-col border border-border bg-background shadow-2xl shadow-blue-900/5 rounded-2xl overflow-hidden mb-8 transition-all duration-300">
-        {/* Row 1: Tags - Crisp White */}
-        <div className="flex flex-wrap items-center gap-4 px-8 py-5 border-b border-border bg-background">
+      <div className="sticky top-0 z-30 flex flex-col border border-border bg-card shadow-xl dark:shadow-none rounded-2xl overflow-hidden mb-8 transition-all duration-300">
+        {/* Row 1: Tags - Crisp and Clean */}
+        <div className="flex flex-wrap items-center gap-4 px-8 py-5 border-b border-border bg-card">
           <div className="flex items-center text-muted-foreground mr-2">
-            <Filter className="w-4 h-4 mr-2.5 text-primary/60" />
-            <span className="text-[11px] uppercase tracking-[0.15em] font-black">{t('filter')}</span>
+            <Filter className="w-4 h-4 mr-2.5 text-primary/70" />
+            <span className="text-[11px] uppercase tracking-widest font-bold">{t('filter')}</span>
           </div>
           <div className="flex flex-wrap gap-2.5">
             {allTags.map(tag => (
@@ -133,8 +133,8 @@ export function AlignedArticleView({
                 className={cn(
                   "flex items-center gap-2.5 px-4 py-1.5 rounded-full border transition-all duration-200 text-[11px] font-bold",
                   selectedTags.includes(tag)
-                    ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-105"
-                    : "bg-secondary text-muted-foreground border-transparent hover:border-border hover:bg-background hover:text-foreground"
+                    ? "bg-primary text-primary-foreground border-primary shadow-md"
+                    : "bg-muted text-muted-foreground border-transparent hover:border-border hover:bg-card hover:text-foreground"
                 )}
               >
                 <TagDot tag={tag} isSelected={selectedTags.includes(tag)} />
@@ -152,12 +152,12 @@ export function AlignedArticleView({
           )}
         </div>
 
-        {/* Row 2: Similarity Slider - Subtle Blue Accent */}
-        <div className="flex flex-wrap items-center gap-10 px-8 py-5 bg-blue-50/30 dark:bg-slate-900/30">
+        {/* Row 2: Similarity Slider - Clean Grayscale */}
+        <div className="flex flex-wrap items-center gap-10 px-8 py-5 bg-muted/40">
            <div className="flex items-center gap-8 flex-1">
               <div className="flex items-center text-muted-foreground whitespace-nowrap">
-                <SlidersHorizontal className="w-4 h-4 mr-2.5 text-primary/60" />
-                <span className="text-[11px] uppercase tracking-[0.15em] font-black">{t('similarity_range')}</span>
+                <SlidersHorizontal className="w-4 h-4 mr-2.5 text-primary/70" />
+                <span className="text-[11px] uppercase tracking-widest font-bold">{t('similarity_range')}</span>
               </div>
               <div className="flex-1 px-6">
                  <Slider
@@ -170,14 +170,14 @@ export function AlignedArticleView({
                  />
               </div>
               <div className="flex items-center gap-2 min-w-[120px] justify-end">
-                 <span className="text-[11px] font-black text-foreground bg-background px-3 py-1 rounded-lg border border-border shadow-soft">{simRange[0]}%</span>
+                 <span className="text-[11px] font-bold text-foreground bg-card px-3 py-1 rounded-lg border border-border">{simRange[0]}%</span>
                  <span className="text-muted-foreground opacity-40 font-bold">~</span>
-                 <span className="text-[11px] font-black text-foreground bg-background px-3 py-1 rounded-lg border border-border shadow-soft">{simRange[1]}%</span>
+                 <span className="text-[11px] font-bold text-foreground bg-card px-3 py-1 rounded-lg border border-border">{simRange[1]}%</span>
               </div>
            </div>
 
            <div className="flex items-center gap-4 border-l border-border pl-10">
-              <Label htmlFor="invert-sim" className="text-[11px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer select-none">
+              <Label htmlFor="invert-sim" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest cursor-pointer select-none">
                 {t('invert_label')}
               </Label>
               <Switch
@@ -310,9 +310,9 @@ function AlignedArticleRow({ change, language, idx }: { change: ArticleChange, l
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true, margin: "-50px" }}
       className={cn(
-        "relative rounded-[2.5rem] border p-12 transition-all",
-        "bg-background border-border shadow-2xl shadow-slate-200/50 dark:shadow-none hover:shadow-primary/5 hover:border-primary/20",
-        type === 'unchanged' && "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
+        "relative rounded-[2rem] border p-12 transition-all",
+        "bg-card border-border shadow-xl hover:shadow-2xl hover:border-primary/20",
+        type === 'unchanged' && "opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
       )}
     >
       {/* Type Badges */}
@@ -446,24 +446,27 @@ function ArticleCard({ article, type, side, compareTo, isMulti }: ArticleCardPro
 
   return (
     <div className={cn(
-      "group relative flex flex-col gap-5 rounded-3xl border p-8 text-[15px] leading-relaxed transition-all duration-500",
-      // Light Mode Design: Pure White vs Subtle Slate
-      side === 'old' ? "bg-secondary/40 border-border text-muted-foreground/80 font-medium" : "bg-background border-border text-foreground shadow-xl shadow-slate-200/40 ring-1 ring-primary/5 hover:ring-primary/20",
-      (type === 'added' && side === 'new') && "border-emerald-500/20 shadow-emerald-100",
-      (type === 'deleted' && side === 'old') && "border-rose-500/20 shadow-rose-100",
+      "group relative flex flex-col gap-5 rounded-2xl border p-8 text-[15px] leading-relaxed transition-all duration-500",
+      // Modern High-Contrast Theme Adaptive Design
+      side === 'old'
+        ? "bg-muted/30 border-border/60 text-muted-foreground"
+        : "bg-card border-border text-foreground shadow-lg hover:shadow-xl hover:border-primary/30",
+
+      (type === 'added' && side === 'new') && "border-green-500/30 bg-green-500/[0.02]",
+      (type === 'deleted' && side === 'old') && "border-red-500/30 bg-red-500/[0.02] line-through opacity-70",
       isMulti && "ml-8 border-l-4 border-l-primary/40",
-      type === 'unchanged' && "opacity-80 scale-98 border-transparent shadow-none"
+      type === 'unchanged' && "opacity-90 border-transparent shadow-none"
     )}>
       {/* Header Line */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-2">
+      <div className="flex items-center justify-between border-b border-border/50 pb-3 mb-2">
          <div className="flex items-center gap-3">
             <span className={cn(
-              "font-black font-mono text-[13px] px-2 py-0.5 rounded bg-primary/10",
-              side === 'old' ? "text-muted-foreground" : "text-primary"
+              "font-bold font-mono text-[13px] px-2 py-0.5 rounded",
+              side === 'old' ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
             )}>
               {article.number}
             </span>
-            {article.title && <span className="font-bold text-[12px] text-foreground/90">{article.title}</span>}
+            {article.title && <span className="font-bold text-[12px] text-foreground/80">{article.title}</span>}
          </div>
       </div>
       <div className={cn("whitespace-pre-wrap font-sans leading-loose tracking-tight", type === 'deleted' && side === 'old' && "line-through opacity-60")}>

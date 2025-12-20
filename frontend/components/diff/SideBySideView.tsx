@@ -16,20 +16,20 @@ export default function SideBySideView({ changes, className }: SideBySideViewPro
   const lineGroups = React.useMemo(() => groupChangesForSideBySide(changes), [changes]);
 
   return (
-    <div className={cn('border rounded-lg overflow-hidden flex flex-col', className)}>
+    <div className={cn('border border-border rounded-xl overflow-hidden flex flex-col bg-card shadow-xl shadow-foreground/5 dark:shadow-none', className)}>
       {/* Header */}
-      <div className="bg-muted/40 p-4 border-b border-border/10 flex items-center justify-between">
+      <div className="bg-card p-5 border-b border-border flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-base">左右对比模式</h3>
-          <p className="text-xs text-muted-foreground mt-1">左侧为旧版本，右侧为新版本 (自动对齐)</p>
+          <h3 className="font-bold text-lg font-sans">左右对比模式</h3>
+          <p className="text-xs text-muted-foreground mt-1 font-sans">左侧为旧版本，右侧为新版本 (智能对齐)</p>
         </div>
       </div>
 
       {/* Header Columns */}
-      <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border border-b border-border text-sm font-medium">
-          <div className="bg-red-500/10 px-4 py-2 text-red-600 dark:text-red-400">旧版本</div>
-          <div className="bg-muted/30"></div>
-          <div className="bg-green-500/10 px-4 py-2 text-green-600 dark:text-green-400">新版本</div>
+      <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border/40 border-b border-border text-[11px] font-bold uppercase tracking-widest bg-muted/30">
+          <div className="px-6 py-3 text-red-600/70 dark:text-red-400/80">旧版本 (Source)</div>
+          <div className="bg-muted/50"></div>
+          <div className="px-6 py-3 text-green-700/80 dark:text-green-400/80">新版本 (Target)</div>
       </div>
 
       {/* Content Area (Infinite Height) */}
@@ -47,48 +47,48 @@ export default function SideBySideView({ changes, className }: SideBySideViewPro
 // Single Row Component ensures heights match perfectly
 const SideBySideRow = React.memo(({ group, index }: { group: any, index: number }) => {
     return (
-        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border/60 border-b border-border/30 min-h-[32px] hover:bg-muted/30 transition-colors group" id={`chunk-${index}`}>
+        <div className="grid grid-cols-[1fr_50px_1fr] divide-x divide-border/30 border-b border-border/10 min-h-[36px] hover:bg-muted/10 transition-colors group" id={`chunk-${index}`}>
 
             {/* Left Side (Old) */}
             <div className={cn(
                 "relative flex items-stretch",
-                group.type === 'delete' && "bg-red-500/[0.04]",
-                group.type === 'modify' && "bg-amber-500/[0.04]"
+                group.type === 'delete' && "bg-red-50/20 dark:bg-red-500/5",
+                group.type === 'modify' && "bg-amber-50/20 dark:bg-amber-500/5"
             )}>
-                {/* Line Number */}
-                <div className="w-12 flex-shrink-0 bg-muted/40 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none font-mono">
+                {/* Line Number Gutter */}
+                <div className="w-10 flex-shrink-0 bg-muted/10 dark:bg-card text-muted-foreground/30 text-[9px] flex items-center justify-center border-r border-border/20 select-none font-mono font-medium">
                     {group.oldLine || ""}
                 </div>
                 {/* Content */}
                 <div className={cn(
-                    "flex-1 p-3 font-mono text-[13px] break-words whitespace-pre-wrap leading-relaxed",
-                    (group.type === 'delete' || group.type === 'modify') ? "text-foreground" : "text-muted-foreground/70",
-                    group.type === 'add' && "opacity-0 select-none" // Empty slot for added line
+                    "flex-1 p-4 font-mono text-[13px] break-words whitespace-pre-wrap leading-[1.8]",
+                    (group.type === 'delete' || group.type === 'modify') ? "text-foreground font-medium" : "text-muted-foreground/40",
+                    group.type === 'add' && "opacity-0 select-none"
                 )}>
                     {group.type !== 'add' && (group.type === 'modify' ? highlightCharacterDiff(group.oldContent, group.newContent, 'old') : group.oldContent)}
                 </div>
             </div>
 
-            {/* Central Gutter (Visual Flow) */}
-            <div className="relative bg-muted/20 flex items-center justify-center overflow-hidden border-x border-border/10">
+            {/* Central Gutter (FlowIndicator) */}
+            <div className="relative bg-muted/5 flex items-center justify-center overflow-hidden">
                 <GutterVisualization type={group.type} />
             </div>
 
             {/* Right Side (New) */}
             <div className={cn(
                 "relative flex items-stretch",
-                group.type === 'add' && "bg-green-500/[0.04]",
-                group.type === 'modify' && "bg-amber-500/[0.04]"
+                group.type === 'add' && "bg-green-50/20 dark:bg-green-500/5",
+                group.type === 'modify' && "bg-amber-50/20 dark:bg-amber-500/5"
             )}>
-                 {/* Line Number */}
-                 <div className="w-12 flex-shrink-0 bg-muted/40 text-muted-foreground text-[10px] flex items-center justify-center border-r border-border/10 select-none font-mono">
+                 {/* Line Number Gutter */}
+                 <div className="w-10 flex-shrink-0 bg-muted/10 dark:bg-card text-muted-foreground/30 text-[9px] flex items-center justify-center border-r border-border/20 select-none font-mono font-medium">
                     {group.newLine || ""}
                 </div>
                 {/* Content */}
                 <div className={cn(
-                    "flex-1 p-3 font-mono text-[13px] break-words whitespace-pre-wrap leading-relaxed",
-                     (group.type === 'add' || group.type === 'modify') ? "text-foreground font-medium" : "text-muted-foreground/70",
-                     group.type === 'delete' && "opacity-0 select-none" // Empty slot for deleted line
+                    "flex-1 p-4 font-mono text-[13px] break-words whitespace-pre-wrap leading-[1.8]",
+                     (group.type === 'add' || group.type === 'modify') ? "text-foreground font-bold" : "text-muted-foreground/40",
+                     group.type === 'delete' && "opacity-0 select-none"
                 )}>
                     {group.type !== 'delete' && (group.type === 'modify' ? highlightCharacterDiff(group.oldContent, group.newContent, 'new') : group.newContent)}
                 </div>
@@ -139,7 +139,7 @@ function highlightCharacterDiff(text1: string, text2: string, side: 'old' | 'new
       // Old side: highlight deletions in red
       if (type === -1) {
         return (
-          <mark key={i} className="bg-red-500/30 text-red-900 dark:text-red-100 rounded px-0.5">
+          <mark key={i} className="bg-red-100 text-red-800 font-bold rounded px-0.5 border border-red-200">
             {text}
           </mark>
         );
@@ -151,7 +151,7 @@ function highlightCharacterDiff(text1: string, text2: string, side: 'old' | 'new
       // New side: highlight additions in green
       if (type === 1) {
         return (
-          <mark key={i} className="bg-green-500/30 text-green-900 dark:text-green-100 rounded px-0.5">
+          <mark key={i} className="bg-green-100 text-green-900 font-bold rounded px-0.5 border border-green-200 shadow-sm">
             {text}
           </mark>
         );

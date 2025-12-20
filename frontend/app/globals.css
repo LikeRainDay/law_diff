@@ -99,13 +99,13 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    --foreground: 224 71.4% 4.1%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 224 71.4% 4.1%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 224 71.4% 4.1%;
 
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
@@ -128,8 +128,8 @@
 
     --radius: 0.75rem;
 
-    /* Professional Diff Colors (Light) */
-    --diff-add: 142 76% 28%;
+    /* Professional Diff Palette - Vibrant and Clean */
+    --diff-add: 142 76% 30%;
     --diff-add-bg: 142 76% 97%;
     --diff-delete: 0 84% 45%;
     --diff-delete-bg: 0 84% 98%;
@@ -138,41 +138,41 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 230 15% 7%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 230 15% 9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 230 15% 9%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 230 15% 12%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 230 15% 12%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 230 15% 12%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 230 15% 15%;
+    --input: 230 15% 15%;
     --ring: 212.7 26.8% 83.9%;
 
-    /* Custom legal colors for dark mode */
+    /* Premium legal colors for dark mode */
     --diff-add: 142 70% 45%;
-    --diff-add-bg: 142 70% 12%;
+    --diff-add-bg: 142 70% 8%;
     --diff-delete: 0 70% 50%;
-    --diff-delete-bg: 0 70% 12%;
+    --diff-delete-bg: 0 70% 8%;
     --diff-modify: 38 80% 55%;
-    --diff-modify-bg: 38 80% 12%;
+    --diff-modify-bg: 38 80% 8%;
   }
 
   body {
