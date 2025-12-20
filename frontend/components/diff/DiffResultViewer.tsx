@@ -55,6 +55,43 @@ export const DiffResultViewer = React.memo(({
   loading = false,
   t
 }: DiffResultViewerProps) => {
+  // Compute stats for structure view
+  const displayStats = useMemo(() => {
+    if (viewMode === 'article-structure' && diffResult.articleChanges) {
+      const stats = {
+        additions: 0,
+        deletions: 0,
+        modifications: 0,
+        unchanged: 0
+      };
+
+      diffResult.articleChanges.forEach(change => {
+        switch (change.type) {
+          case 'added':
+            stats.additions++;
+            break;
+          case 'deleted':
+            stats.deletions++;
+            break;
+          case 'modified':
+          case 'renumbered':
+          case 'split':
+          case 'merged':
+          case 'moved':
+          case 'replaced':
+            stats.modifications++;
+            break;
+          case 'unchanged':
+            stats.unchanged++;
+            break;
+        }
+      });
+
+      return stats;
+    }
+
+    return diffResult.stats;
+  }, [viewMode, diffResult.articleChanges, diffResult.stats]);
 
   return (
     <motion.div
@@ -213,7 +250,7 @@ export const DiffResultViewer = React.memo(({
               <Card className="bg-green-500/5 border-green-500/20 shadow-sm transition-all hover:bg-green-500/10">
                 <div className="p-3 text-center">
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {diffResult.stats.additions}
+                    {displayStats.additions}
                   </div>
                   <div className="text-xs text-muted-foreground">{t('stats_added')}</div>
                 </div>
@@ -221,7 +258,7 @@ export const DiffResultViewer = React.memo(({
               <Card className="bg-red-500/5 border-red-500/20 shadow-sm transition-all hover:bg-red-500/10">
                 <div className="p-3 text-center">
                   <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {diffResult.stats.deletions}
+                    {displayStats.deletions}
                   </div>
                   <div className="text-xs text-muted-foreground">{t('stats_deleted')}</div>
                 </div>
@@ -229,7 +266,7 @@ export const DiffResultViewer = React.memo(({
               <Card className="bg-amber-500/5 border-amber-500/20 shadow-sm transition-all hover:bg-amber-500/10">
                 <div className="p-3 text-center">
                   <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    {diffResult.stats.modifications}
+                    {displayStats.modifications}
                   </div>
                   <div className="text-xs text-muted-foreground">{t('stats_modified')}</div>
                 </div>
@@ -237,7 +274,7 @@ export const DiffResultViewer = React.memo(({
               <Card className="bg-blue-500/5 border-blue-500/20 shadow-sm transition-all hover:bg-blue-500/10">
                 <div className="p-3 text-center">
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {diffResult.stats.unchanged}
+                    {displayStats.unchanged}
                   </div>
                   <div className="text-xs text-muted-foreground">{t('stats_unchanged')}</div>
                 </div>
