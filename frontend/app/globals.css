@@ -99,42 +99,42 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222.2 47.4% 11.2%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 98%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 210 40% 98%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 210 40% 98%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 94%;
+    --input: 214.3 31.8% 94%;
     --ring: 221.2 83.2% 53.3%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    /* Custom legal document colors */
-    --diff-add: 142 76% 36%;
-    --diff-add-bg: 142 76% 96%;
-    --diff-delete: 0 84% 60%;
-    --diff-delete-bg: 0 84% 97%;
-    --diff-modify: 38 92% 50%;
-    --diff-modify-bg: 38 92% 96%;
+    /* Professional Diff Colors (Light) */
+    --diff-add: 142 76% 28%;
+    --diff-add-bg: 142 76% 97%;
+    --diff-delete: 0 84% 45%;
+    --diff-delete-bg: 0 84% 98%;
+    --diff-modify: 38 92% 40%;
+    --diff-modify-bg: 38 92% 97%;
   }
 
   .dark {

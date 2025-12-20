@@ -196,6 +196,12 @@ pub struct CompareOptions {
     pub align_threshold: f32,
     #[serde(default)]
     pub format_text: bool,
+
+    // Similarity filter options
+    pub min_similarity: Option<f32>,
+    pub max_similarity: Option<f32>,
+    #[serde(default)]
+    pub invert_similarity: bool,
 }
 
 fn default_align_threshold() -> f32 {

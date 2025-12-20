@@ -75,7 +75,7 @@ async fn compare_structure(
         result.similarity = total_sim / article_changes.len() as f32;
     }
 
-    result.article_changes = Some(article_changes);
+    result.article_changes = Some(apply_similarity_filter(article_changes, &payload.options));
     Ok(Json(result))
 }
 
@@ -96,11 +96,35 @@ async fn compare(
             payload.options.align_threshold,
             payload.options.format_text
         );
-        result.article_changes = Some(article_changes);
+        result.article_changes = Some(apply_similarity_filter(article_changes, &payload.options));
         result
     }).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(result))
+}
+
+/// Helper to filter article changes by similarity
+fn apply_similarity_filter(
+    changes: Vec<crate::models::ArticleChange>,
+    options: &crate::models::CompareOptions
+) -> Vec<crate::models::ArticleChange> {
+    if options.min_similarity.is_none() && options.max_similarity.is_none() {
+        return changes;
+    }
+
+    let min = options.min_similarity.unwrap_or(0.0);
+    let max = options.max_similarity.unwrap_or(1.0);
+
+    changes.into_iter().filter(|c| {
+        let sim = c.similarity.unwrap_or(if matches!(c.change_type, crate::models::ArticleChangeType::Unchanged) { 1.0 } else { 0.0 });
+        let in_range = sim >= min && sim <= max;
+
+        if options.invert_similarity {
+            !in_range
+        } else {
+            in_range
+        }
+    }).collect()
 }
 
 

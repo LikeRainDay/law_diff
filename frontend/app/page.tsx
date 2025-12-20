@@ -36,13 +36,16 @@ export default function Home() {
   const [newText, setNewText] = useState('');
   const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('git');
+  const [viewMode, setViewMode] = useState<ViewMode>('article-structure');
   const [language, setLanguage] = useState<'zh' | 'en'>('zh');
 
   // Advanced Settings
   const [alignThreshold, setAlignThreshold] = useState(0.6);
   const [formatText, setFormatText] = useState(false);
   const [showIdentical, setShowIdentical] = useState(true);
+  const [minSimilarity, setMinSimilarity] = useState(0);
+  const [maxSimilarity, setMaxSimilarity] = useState(1);
+  const [invertSimilarity, setInvertSimilarity] = useState(false);
 
   // Localization Helper
   const t = useCallback((key: string) => {
@@ -131,6 +134,9 @@ export default function Home() {
         alignThreshold,
         formatText,
         detectEntities: false,
+        minSimilarity,
+        maxSimilarity,
+        invertSimilarity,
         type: type
       });
 
@@ -152,6 +158,9 @@ export default function Home() {
                     alignThreshold,
                     formatText,
                     detectEntities: false,
+                    minSimilarity,
+                    maxSimilarity,
+                    invertSimilarity,
                     type: 'structure'
                 });
                 setDiffResult(prev => prev ? { ...prev, articleChanges: result.articleChanges } : result);
@@ -187,6 +196,35 @@ export default function Home() {
     setOldText('');
     setNewText('');
     setDiffResult(null);
+  };
+
+  const handleSwap = async () => {
+    const tempOld = oldText;
+    const tempNew = newText;
+    setOldText(tempNew);
+    setNewText(tempOld);
+
+    if (!tempOld && !tempNew) return;
+
+    // Automatically trigger comparison with swapped values
+    setLoading(true);
+    try {
+      const type = viewMode === 'article-structure' ? 'structure' : 'git';
+      const result = await compareLegalTextsAsync(tempNew, tempOld, {
+        alignThreshold,
+        formatText,
+        detectEntities: false,
+        minSimilarity,
+        maxSimilarity,
+        invertSimilarity,
+        type: type
+      });
+      setDiffResult(result);
+    } catch (error) {
+      console.error("Swap-comparison failed:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const useExample = async () => {
@@ -269,7 +307,7 @@ export default function Home() {
         </header>
 
         {/* Input Area */}
-        <section className="grid md:grid-cols-2 gap-6">
+        <section className="relative grid md:grid-cols-2 gap-6">
           <Card className="glass-card border-l-4 border-l-red-500/50 shadow-sm hover:shadow-md transition-shadow">
              <CardHeader className="pb-3">
                <CardTitle className="flex items-center gap-2 text-base font-medium">
@@ -286,6 +324,20 @@ export default function Home() {
                />
              </CardContent>
           </Card>
+
+          {/* Central Swap Button (Desktop) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 hidden md:flex">
+             <Button
+               variant="outline"
+               size="icon"
+               className="rounded-full w-12 h-12 shadow-xl bg-background border-primary/20 hover:bg-primary hover:text-primary-foreground hover:scale-110 transition-all active:scale-95 group"
+               onClick={handleSwap}
+               disabled={loading}
+               title="Swap Original & Target"
+             >
+               <ArrowRightLeft className={cn("w-5 h-5 transition-transform group-hover:rotate-180", loading && "animate-spin")} />
+             </Button>
+          </div>
 
           <Card className="glass-card border-l-4 border-l-green-500/50 shadow-sm hover:shadow-md transition-shadow">
              <CardHeader className="pb-3">
@@ -339,6 +391,12 @@ export default function Home() {
                setFormatText={setFormatText}
                showIdentical={showIdentical}
                setShowIdentical={setShowIdentical}
+               minSimilarity={minSimilarity}
+               setMinSimilarity={setMinSimilarity}
+               maxSimilarity={maxSimilarity}
+               setMaxSimilarity={setMaxSimilarity}
+               invertSimilarity={invertSimilarity}
+               setInvertSimilarity={setInvertSimilarity}
                loading={loading}
                t={t}
             />

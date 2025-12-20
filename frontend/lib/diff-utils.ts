@@ -30,6 +30,9 @@ export async function compareLegalTextsAsync(
     alignThreshold: number;
     formatText: boolean;
     detectEntities: boolean;
+    minSimilarity?: number;
+    maxSimilarity?: number;
+    invertSimilarity?: boolean;
     type: 'full' | 'git' | 'structure';
   }>
 ): Promise<DiffResult> {
@@ -50,6 +53,9 @@ export async function compareLegalTextsAsync(
           ner_mode: 'regex',
           align_threshold: options?.alignThreshold ?? 0.6,
           format_text: options?.formatText ?? true,
+          min_similarity: options?.minSimilarity,
+          max_similarity: options?.maxSimilarity,
+          invert_similarity: options?.invertSimilarity,
         },
       }),
     });

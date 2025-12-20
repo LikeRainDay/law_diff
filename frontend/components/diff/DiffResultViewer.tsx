@@ -12,6 +12,7 @@ import { AlignedArticleView } from './AlignedArticleView';
 import AnchorNavigation from './AnchorNavigation';
 import EntityHighlight from '@/components/legal/EntityHighlight';
 import { ComparisonSettings } from './ComparisonSettings';
+import { cn } from '@/lib/utils';
 
 interface DiffResultViewerProps {
   diffResult: DiffResult;
@@ -24,6 +25,12 @@ interface DiffResultViewerProps {
   setFormatText: (v: boolean) => void;
   showIdentical: boolean;
   setShowIdentical: (v: boolean) => void;
+  minSimilarity: number;
+  setMinSimilarity: (v: number) => void;
+  maxSimilarity: number;
+  setMaxSimilarity: (v: number) => void;
+  invertSimilarity: boolean;
+  setInvertSimilarity: (v: boolean) => void;
   loading?: boolean;
   t: (key: string) => string;
 }
@@ -39,6 +46,12 @@ export const DiffResultViewer = React.memo(({
   setFormatText,
   showIdentical,
   setShowIdentical,
+  minSimilarity,
+  setMinSimilarity,
+  maxSimilarity,
+  setMaxSimilarity,
+  invertSimilarity,
+  setInvertSimilarity,
   loading = false,
   t
 }: DiffResultViewerProps) => {
@@ -52,8 +65,21 @@ export const DiffResultViewer = React.memo(({
       className="space-y-6"
     >
       {/* Toolbar */}
-      <div className="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 sticky top-4 z-40 bg-background/80 backdrop-blur-md shadow-lg border border-border/50">
+      <div className="rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 sticky top-4 z-40 bg-white dark:bg-card border border-border shadow-md transition-all duration-300">
         <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+          <Button
+            variant={viewMode === 'article-structure' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('article-structure')}
+            className="gap-2 relative"
+          >
+            <FileDiff className="w-4 h-4" />
+            {t('structure_view')}
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+            </span>
+          </Button>
           <Button
             variant={viewMode === 'git' ? 'default' : 'ghost'}
             size="sm"
@@ -70,19 +96,6 @@ export const DiffResultViewer = React.memo(({
           >
             <LayoutTemplate className="w-4 h-4" /> {t('split_view')}
           </Button>
-          <Button
-            variant={viewMode === 'article-structure' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('article-structure')}
-            className="gap-2 relative"
-          >
-            <FileDiff className="w-4 h-4" />
-            {t('structure_view')}
-            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-            </span>
-          </Button>
         </div>
 
         <div className="flex items-center gap-4">
@@ -93,6 +106,12 @@ export const DiffResultViewer = React.memo(({
             onFormatTextChange={setFormatText}
             showIdentical={showIdentical}
             onShowIdenticalChange={setShowIdentical}
+            minSimilarity={minSimilarity}
+            onMinSimilarityChange={setMinSimilarity}
+            maxSimilarity={maxSimilarity}
+            onMaxSimilarityChange={setMaxSimilarity}
+            invertSimilarity={invertSimilarity}
+            onInvertSimilarityChange={setInvertSimilarity}
             language={language}
           />
           <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold border border-primary/20">
@@ -105,7 +124,7 @@ export const DiffResultViewer = React.memo(({
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Main Viewer */}
         <div className="lg:col-span-9 order-2 lg:order-1">
-          <Card className="overflow-hidden min-h-[850px] bg-card/40 border-border/40 shadow-xl">
+      <Card className="overflow-hidden min-h-[850px] bg-white dark:bg-card/40 border-border/40 shadow-xl">
             <CardContent className="p-0 relative">
               <AnimatePresence>
                 {loading && (
