@@ -98,18 +98,25 @@ export function AlignedArticleView({
     );
   };
 
-  // Group changes by hierarchy to show headers
-  const rows_with_headers: { header?: string[], change: ArticleChange }[] = [];
-  let last_parents: string = "";
+  // Group changes by hierarchy to show headers with comparison
+  const rows_with_headers: { oldHeader?: string[], newHeader?: string[], change: ArticleChange }[] = [];
+  let last_parents_key: string = "";
 
   visibleChanges.forEach(change => {
-    // Determine hierarchy from either old or new article
-    const parents = change.newArticles?.[0]?.parents || change.oldArticle?.parents || [];
-    const parentKey = parents.join(' > ');
+    // Get hierarchy from both old and new articles
+    const oldParents = change.oldArticle?.parents || [];
+    const newParents = change.newArticles?.[0]?.parents || [];
 
-    if (parentKey !== last_parents && parents.length > 0) {
-      rows_with_headers.push({ header: parents, change });
-      last_parents = parentKey;
+    // Create a unique key for this hierarchy combination
+    const parentKey = `${oldParents.join(' > ')}|${newParents.join(' > ')}`;
+
+    if (parentKey !== last_parents_key && (oldParents.length > 0 || newParents.length > 0)) {
+      rows_with_headers.push({
+        oldHeader: oldParents.length > 0 ? oldParents : undefined,
+        newHeader: newParents.length > 0 ? newParents : undefined,
+        change
+      });
+      last_parents_key = parentKey;
     } else {
       rows_with_headers.push({ change });
     }
@@ -193,25 +200,58 @@ export function AlignedArticleView({
       <div className="flex flex-col gap-12 px-2 pb-20">
         {rows_with_headers.map((item, index) => (
           <React.Fragment key={index}>
-            {/* Render Hierarchy Header */}
-            {item.header && (
+            {/* Render Hierarchy Header with Comparison */}
+            {(item.oldHeader || item.newHeader) && (
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                className="flex items-center gap-4 pt-10 group"
+                className="pt-10 group"
               >
-                <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-black tracking-widest uppercase text-primary/40 group-hover:text-primary transition-colors">
-                  {item.header.map((parent, pIdx) => (
-                    <React.Fragment key={pIdx}>
-                      <span className="cursor-default">{parent}</span>
-                      {pIdx < item.header!.length - 1 && (
-                        <ChevronRight className="w-4 h-4 opacity-40" />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div className="h-[2px] flex-1 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-full" />
+                {/* Check if headers are different */}
+                {item.oldHeader && item.newHeader && item.oldHeader.join('/') !== item.newHeader.join('/') ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    {/* Old Hierarchy */}
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] font-bold text-destructive/60 uppercase tracking-wider">旧版</div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black tracking-widest uppercase text-destructive/50 line-through">
+                        {item.oldHeader.map((parent, pIdx) => (
+                          <React.Fragment key={pIdx}>
+                            <span>{parent}</span>
+                            {pIdx < item.oldHeader!.length - 1 && <ChevronRight className="w-3 h-3 opacity-40" />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                    {/* New Hierarchy */}
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-wider">新版</div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black tracking-widest uppercase text-primary">
+                        {item.newHeader.map((parent, pIdx) => (
+                          <React.Fragment key={pIdx}>
+                            <span>{parent}</span>
+                            {pIdx < item.newHeader!.length - 1 && <ChevronRight className="w-3 h-3 opacity-40" />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Single header when they're the same or only one exists */
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-black tracking-widest uppercase text-primary/40 group-hover:text-primary transition-colors">
+                      {(item.newHeader || item.oldHeader)!.map((parent, pIdx) => (
+                        <React.Fragment key={pIdx}>
+                          <span className="cursor-default">{parent}</span>
+                          {pIdx < (item.newHeader || item.oldHeader)!.length - 1 && (
+                            <ChevronRight className="w-4 h-4 opacity-40" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <div className="h-[2px] flex-1 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-full" />
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -438,7 +478,7 @@ function EmptyState({ label }: { label: string }) {
 }
 
 function ArticleCard({ article, type, side, compareTo, isMulti }: ArticleCardProps) {
-  const isModifiedLike = ['modified', 'renumbered', 'split', 'merged'].includes(type);
+  const isModifiedLike = ['modified', 'renumbered', 'split', 'merged', 'preamble', 'replaced'].includes(type);
   let contentDisplay: React.ReactNode = article.content;
 
   if (isModifiedLike && compareTo) {
