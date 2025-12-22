@@ -41,7 +41,7 @@ The easiest way to deploy Law Compare is using Docker with the included Caddy co
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/law-compare.git
+git clone https://github.com/LikeRainDay/law_diff.git
 cd law-compare
 
 # Build and run with Docker

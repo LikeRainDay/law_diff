@@ -37,7 +37,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-repo/law-compare.git
+git clone https://github.com/LikeRainDay/law_diff.git
 cd law-compare
 
 # 使用 Docker 构建并运行

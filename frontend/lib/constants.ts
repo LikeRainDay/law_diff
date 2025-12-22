@@ -3,7 +3,7 @@ export const SITE_CONFIG = {
   description: "智能法律文书对比分析系统",
   copyright: "© 2025 LegalMind AI. All rights reserved.",
   links: {
-    github: "https://github.com/example/legal-mind",
+    github: "https://github.com/LikeRainDay/law_diff",
     docs: "/docs",
   }
 };

@@ -14,8 +14,8 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
-  AlertCircle,
-  Globe
+  Globe,
+  Github
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -30,6 +30,7 @@ import { ComparisonSettings } from '@/components/diff/ComparisonSettings';
 import { DiffResultViewer } from '@/components/diff/DiffResultViewer';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
+import { SITE_CONFIG } from '@/lib/constants';
 
 export default function Home() {
   const [oldText, setOldText] = useState('');
@@ -281,6 +282,15 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3 pl-14 md:pl-0">
+             <a
+               href={SITE_CONFIG.links.github}
+               target="_blank"
+               rel="noreferrer"
+               className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
+               title="Github Repository"
+             >
+               <Github className="w-5 h-5" />
+             </a>
              <ThemeToggle />
              <Button
                variant="outline"
